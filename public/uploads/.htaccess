@@ -1,0 +1,19 @@
+# Dossier des fichiers déposés par les utilisateurs.
+#
+# Deux régimes de service cohabitent :
+#   - les pièces jointes d'incident sont privées, servies en téléchargement
+#     contrôlé par `IncidentController` ;
+#   - les avatars sont affichés directement dans la page, par `Core\Url::upload()`.
+#     Les noms sont tirés au hasard et l'extension est déduite du MIME constaté,
+#     donc un fichier déposé ne peut pas se faire passer pour un programme.
+#
+# Dans les deux cas, aucun fichier ne doit être interprété par le serveur web :
+# c'est la raison d'être des règles ci-dessous.
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+<FilesMatch "\.(php|phtml|phar|php[0-9]?|cgi|pl|py|sh)$">
+    Require all denied
+</FilesMatch>
+Options -Indexes -ExecCGI
+AddType text/plain .php .phtml .phar

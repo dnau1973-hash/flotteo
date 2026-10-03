@@ -1,0 +1,410 @@
+/* =============================================================================
+   Flotteo — Personnalisations légères sur Tabler.io
+   ========================================================================== */
+
+:root {
+    --flotteo-accent: #206bc4;
+    --flotteo-accent-soft: rgba(32, 107, 196, 0.08);
+    --flotteo-ok: #2fb344;
+    --flotteo-warning: #f76707;
+    --flotteo-danger: #d63939;
+}
+
+body { font-size: 0.875rem; }
+
+/* Icônes SVG Tabler en ligne */
+.icon { display: inline-block; vertical-align: -0.15em; }
+
+/* Cartes KPI */
+.kpi-card { position: relative; overflow: hidden; }
+.kpi-card .kpi-icone {
+    position: absolute; top: 1rem; right: 1rem;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 2.5rem; height: 2.5rem; border-radius: 0.5rem;
+    background: var(--flotteo-accent-soft); color: var(--flotteo-accent);
+}
+.kpi-valeur { font-size: 1.85rem; font-weight: 600; line-height: 1.1; letter-spacing: -0.02em; }
+.kpi-libelle { color: var(--mdc-theme-secondary, #646c7a); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.kpi-detail { font-size: 0.78rem; color: #646c7a; }
+
+/* Graphiques */
+.chart-cercle { min-height: 260px; }
+.chart-bars { min-height: 280px; }
+.chart-haut { min-height: 340px; }
+.apexcharts-tooltip { font-size: 0.78rem !important; }
+.apexcharts-canvas { font-family: inherit !important; }
+
+/* Tableaux */
+.table td, .table th { vertical-align: middle; }
+.cell-actions { white-space: nowrap; }
+.badge-statut { text-transform: uppercase; letter-spacing: 0.03em; font-size: 0.68rem; }
+
+/* Barre de progression d'immobilisation */
+.jauge { height: 0.4rem; border-radius: 1rem; background: #e6e7e9; overflow: hidden; }
+.jauge > span { display: block; height: 100%; border-radius: 1rem; }
+
+/* Zones de dépôt et pieces jointes */
+.liste-fichiers li { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.empty-state { padding: 2.5rem 1rem; text-align: center; color: #646c7a; }
+.empty-state .icon { opacity: .5; margin-bottom: .5rem; }
+
+/* Onglets de répartition */
+.onglet-repartition .nav-link { color: #646c7a; }
+.onglet-repartition .nav-link.active { color: var(--flotteo-accent); font-weight: 600; }
+
+/* Impression */
+@media print {
+    .navbar-vertical, .footer, .no-print { display: none !important; }
+    .page { margin: 0; }
+}
+
+/* =============================================================================
+   Assistant d'installation (/install)
+   Police de titraille auto-hébergée : aucun appel réseau externe.
+   ========================================================================== */
+
+@font-face {
+    font-family: 'Dela Gothic One';
+    src: url('../fonts/dela-gothic-one-latin-400.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+.install-body {
+    min-height: 100vh;
+    background: linear-gradient(180deg, #eef2f7 0%, #dde5ef 100%);
+}
+
+/* Conteneur de l'assistant.
+   `.container-tight` de Tabler est bridé à 30rem (480px) : à cette largeur,
+   les colonnes `col-md-*` se réduisent à une centaine de pixels et les libellés
+   comme « Utilisateur MySQL » passent à la ligne. On impose donc une largeur
+   de lecture confortable, tout en restant fluide sous 768 px. */
+.install-container {
+    width: 100%;
+    max-width: 100%;
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+
+@media (min-width: 576px) {
+    .install-container { max-width: 40rem; }
+}
+
+@media (min-width: 768px) {
+    .install-container { max-width: 48rem; }
+}
+
+@media (min-width: 992px) {
+    .install-container { max-width: 54rem; }
+}
+
+@media (min-width: 1280px) {
+    .install-container { max-width: 56rem; }
+}
+
+/* Champs : la hauteur de ligne des aides reste alignée sur celle du champ,
+   ce qui évite les décalages verticaux entre deux colonnes voisines. */
+.install-container .form-label { margin-bottom: 0.25rem; }
+
+.install-container .form-hint {
+    display: block;
+    min-height: 1.1rem;
+    margin-top: 0.2rem;
+    line-height: 1.1rem;
+}
+
+/* Pieds de carte d'actions : les boutons restent sur une ligne tant qu'il y a
+   la place, la note passe en dessous sur mobile, jamais l'inverse. */
+.install-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1rem;
+}
+
+.install-action-final { margin-left: auto; }
+
+.install-note {
+    flex: 1 1 16rem;
+    min-width: 0;
+    margin-left: auto;
+    font-size: 0.75rem;
+    color: #7c8598;
+    text-align: right;
+}
+
+@media (max-width: 767.98px) {
+    .install-actions { flex-direction: column-reverse; align-items: stretch; }
+    .install-actions .btn { width: 100%; }
+    .install-action-final { margin-left: 0; }
+    .install-note { margin-left: 0; text-align: left; }
+}
+
+.install-entete { color: #1a2334; }
+
+.install-sceau {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.5rem;
+    height: 3.5rem;
+    margin-bottom: 0.75rem;
+    color: #f6f3ec;
+    background: #1a2334;
+    border-radius: 50%;
+    box-shadow: 0 0.25rem 0.75rem rgba(26, 35, 52, 0.25);
+}
+
+.install-titre,
+.install-sous-titre {
+    font-family: 'Dela Gothic One', 'Trebuchet MS', system-ui, sans-serif;
+    font-weight: 400;
+    letter-spacing: 0.01em;
+}
+
+.install-titre {
+    margin: 0 0 0.25rem;
+    font-size: 2.25rem;
+    line-height: 1.1;
+    color: #1a2334;
+}
+
+.install-sous-titre {
+    font-size: 0.8125rem;
+    color: #5a6478;
+    margin: 0 0 0.25rem;
+}
+
+.install-titre::after {
+    content: ' · étape ' attr(data-etape);
+    font-size: 0.9rem;
+    color: #7c8598;
+}
+
+.install-titre:not([data-etape])::after { content: none; }
+
+/* Progression */
+.install-etapes [data-etape-marqueur] { position: relative; padding: 0.25rem 0.5rem; }
+
+.etape-puce {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    margin-bottom: 0.35rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #5a6478;
+    background: #e4e9f0;
+    border-radius: 50%;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.etape-libelle { font-size: 0.75rem; color: #7c8598; }
+
+[data-etape-marqueur].etape-active .etape-puce {
+    color: #f6f3ec;
+    background: var(--flotteo-accent);
+    box-shadow: 0 0 0 0.25rem var(--flotteo-accent-soft);
+}
+
+[data-etape-marqueur].etape-active .etape-libelle { color: #1a2334; font-weight: 600; }
+
+[data-etape-marqueur].etape-faite .etape-puce { color: #fff; background: var(--flotteo-ok); }
+
+/* Jauge de robustesse du mot de passe */
+.jauge {
+    height: 0.25rem;
+    overflow: hidden;
+    background: #e4e9f0;
+    border-radius: 999px;
+}
+
+.jauge > span {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: var(--flotteo-danger);
+    transition: width 0.2s ease, background 0.2s ease;
+}
+
+.jauge > span.moyen { background: var(--flotteo-warning); }
+.jauge > span.bon { background: #4c8eda; }
+.jauge > span.excellent { background: var(--flotteo-ok); }
+
+/* Étape 3 : liste d'avancement */
+#liste-etapes .etape-etat {
+    display: inline-block;
+    min-width: 6.5rem;
+    margin-right: 0.5rem;
+    padding: 0.1rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-align: center;
+    color: #7c8598;
+    background: #e4e9f0;
+    border-radius: 999px;
+}
+
+#liste-etapes .etape-etat.encours { color: #fff; background: var(--flotteo-accent); }
+#liste-etapes .etape-etat.faite { color: #fff; background: var(--flotteo-ok); }
+
+.progress-bar-indeterminate {
+    position: relative;
+    background-image: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.35) 50%, rgba(255, 255, 255, 0) 100%);
+    background-size: 200% 100%;
+    animation: flotteso-indeterminee 1.2s linear infinite;
+}
+
+@keyframes flotteso-indeterminee {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .progress-bar-indeterminate { animation: none; }
+}
+
+@media (max-width: 575.98px) {
+    .install-titre { font-size: 1.75rem; }
+}
+
+/* =============================================================================
+   Bandeau supérieur horizontal (remplace la barre latérale)
+   ========================================================================== */
+
+/* Le sidebar a disparu : Tabler impose par ailleurs .page-wrapper { margin-left:
+   15rem } sans condition. On le neutralise pour que la barre occupe bien toute
+   la largeur et que le contenu remonte sous elle. */
+.page-wrapper { margin-left: 0; }
+
+.barre-superieure {
+    position: sticky;
+    top: 0;
+    z-index: 1030;
+    min-height: 3.5rem;
+    border-bottom: var(--tblr-border-width) solid var(--tblr-border-color);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.03);
+}
+
+/* L'identité garde une taille lisible même quand la barre se replie. */
+.barre-superieure .navbar-brand { font-size: 1.125rem; font-weight: 600; }
+.barre-superieure .navbar-brand .fa-solid { font-size: 1.25rem; }
+
+.barre-superieure .navbar-nav .nav-link {
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+}
+
+.barre-superieure .navbar-nav .nav-link.active {
+    font-weight: 600;
+}
+
+.barre-superieure .navbar-toggler {
+    padding: .25rem .5rem;
+    border: 0;
+    color: inherit;
+}
+
+.barre-superieure .navbar-toggler:focus { box-shadow: none; }
+
+/* Sous le point de rupture xl, les modules se replient : ils occupent alors la
+   largeur disponible plutôt que de décaler la barre. La valeur suit le
+   `navbar-expand-xl` de la barre, 1200 px moins la marge d'un pixel, et non le
+   992 px de `navbar-expand-lg` : entre 992 et 1200 px les sept modules ne
+   tiennent plus sur une ligne et provoquaient un défilement horizontal de la
+   page entière. */
+@media (max-width: 1199.98px) {
+    .barre-superieure .navbar-collapse {
+        padding-top: .5rem;
+    }
+
+    .barre-superieure .navbar-nav .nav-link {
+        padding: .5rem 0;
+    }
+
+    .barre-superieure .dropdown-menu { position: static; float: none; }
+}
+
+/* Le titre de page est masqué à l'écran (imprimé seulement) : la barre porte
+   désormais l'identité et le nom du module actif, donc le doublon visuel
+   « titre de page » en haut de chaque vue n'apporte plus rien. */
+
+/* ---------------------------------------------------------------------------
+   Corps des registres documentaires
+   ---------------------------------------------------------------------------
+   Le contenu des quatre registres est produit par Core\Markdown : titres,
+   listes, tableaux, citations et blocs de code sont du HTML nu, sans les
+   classes utilitaires que Tabler applique à ses propres composants. Sans ces
+   règles, un <h2> s'afficherait avec la taille par défaut du navigateur et un
+   tableau large déborderait la carte. Les valeurs reprennent celles des
+   composants Tabler équivalents (--tblr-*). */
+
+.markdown > :first-child { margin-top: 0; }
+.markdown > :last-child  { margin-bottom: 0; }
+
+.markdown h1, .markdown h2, .markdown h3,
+.markdown h4, .markdown h5, .markdown h6 {
+    margin-top: 1.5rem;
+    margin-bottom: .5rem;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.markdown h1 { font-size: 1.5rem; }
+.markdown h2 { font-size: 1.25rem; }
+.markdown h3 { font-size: 1.1rem; }
+.markdown h4, .markdown h5, .markdown h6 { font-size: 1rem; }
+
+.markdown p  { margin-bottom: 1rem; }
+.markdown ul, .markdown ol { margin-bottom: 1rem; padding-left: 1.5rem; }
+.markdown li { margin-bottom: .25rem; }
+.markdown li > ul, .markdown li > ol { margin-top: .25rem; margin-bottom: .25rem; }
+
+.markdown code {
+    padding: .15em .35em;
+    font-size: .875em;
+    background: var(--tblr-code-bg, rgba(0, 0, 0, .04));
+    border-radius: var(--tblr-border-radius, .25rem);
+    color: var(--tblr-code-color, inherit);
+    word-break: break-word;
+}
+
+.markdown pre {
+    margin-bottom: 1rem;
+    padding: .75rem 1rem;
+    overflow-x: auto;
+    background: var(--tblr-code-bg, rgba(0, 0, 0, .04));
+    border-radius: var(--tblr-border-radius, .25rem);
+}
+
+/* Le code d'un bloc ne reçoit pas le fond ni le padding du code inline. */
+.markdown pre code {
+    padding: 0;
+    font-size: .85em;
+    background: none;
+    white-space: pre;
+}
+
+.markdown blockquote {
+    margin-bottom: 1rem;
+    padding-left: 1rem;
+    border-left: 3px solid var(--tblr-border-color, rgba(0, 0, 0, .1));
+    color: var(--tblr-secondary, inherit);
+}
+
+.markdown hr { margin: 1.5rem 0; }
+
+/* Les tableaux produits par le moteur portent déjà .table-responsive ; on borne
+   la hauteur des en-têtes plutôt que de laisser une cellule unique s'étirer. */
+.markdown thead th {
+    white-space: nowrap;
+    border-bottom-width: 2px;
+}
+
+.markdown a { text-decoration: none; }
+.markdown a:hover { text-decoration: underline; }

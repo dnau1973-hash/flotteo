@@ -1,0 +1,46 @@
+# ==============================================================================
+# .gitignore — Fichiers exclus du dépôt Flotteo
+#
+# Portée volontairement étroite : un clone doit pouvoir démarrer sans étapes
+# supplémentaires. Sont donc versionnés les assets embarqués
+# (`public/assets/tabler/`, aucun build) et les sources SQL, qui sont la
+# référence du schéma.
+#
+# `.aiexclude.md` sert un autre objet — l'exclusion du contexte_agent. Il est
+# plus large et n'a pas à être recopié ici tel quel.
+# ==============================================================================
+
+# --- Secrets & configuration propre au poste ---
+# Écrit par l'installateur, contient les identifiants de connexion MySQL.
+config/database.php
+.env
+.env.*
+*.key
+*.pem
+*.cert
+*.p12
+
+# --- État d'exécution propre au déploiement ---
+# Le verrou d'installation empêche de relancer l'assistant : il est propre à
+# l'instance, pas au code.
+storage/install.lock
+storage/cache/
+storage/sessions/
+
+# Journaux : un clone n'a rien à voir avec les traces d'un poste de dev.
+storage/logs/*.log
+
+# --- Fichiers déposés par les utilisateurs ---
+# Les gardes de sécurité des dossiers restent versionnées, d'où les
+# exceptions : `public/uploads/.htaccess` interdit l'exécution de programme
+# dans le dossier et `storage/logs/.htaccess` en refuse l'accès. Les retirer
+# du dépôt laisserait une installation fraîche sans ces protections.
+public/uploads/**
+!public/uploads/.htaccess
+
+# --- Divers ---
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

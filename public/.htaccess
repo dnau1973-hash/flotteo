@@ -1,0 +1,50 @@
+# Flotteo - réécriture d'URL vers le front controller
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # --- Ressources statiques ------------------------------------------------
+    # Court-circuit explicite : assets, manifeste, favicon et pièces jointes
+    # ne doivent JAMAIS être réécrits vers index.php. La condition -f/-d ci-dessous
+    # reste active en filet de sécurité si ce bloc est neutralisé.
+    RewriteRule ^(?:assets|uploads)/ - [L]
+    RewriteRule ^(?:app\.json|favicon\.svg|robots\.txt)$ - [L]
+
+    # Empêche l'accès direct aux ressources sensibles stockées côté serveur
+    RewriteRule ^(?:config|core|controllers|models|services|views|sql|scripts|storage)/ - [F,L]
+
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [QSA,L]
+</IfModule>
+
+# Page d'accueil par défaut si le dossier est accolé directement au domaine
+DirectoryIndex index.php
+
+# --- Types MIME des ressources applicatives ---------------------------------
+<IfModule mod_mime.c>
+    AddType application/json            .json
+    AddType image/svg+xml               .svg
+    AddType application/javascript      .js
+    AddType text/css                    .css
+    AddType font/woff2                  .woff2
+    AddType application/pdf             .pdf
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+<IfModule mod_expires.c>
+    # Les assets portent une version en cache long, l'application non.
+    ExpiresActive On
+    <FilesMatch "\.(css|js|svg|woff2?)$">
+        ExpiresDefault "access plus 7 days"
+    </FilesMatch>
+    <FilesMatch "\.php$">
+        ExpiresDefault "access plus 0 seconds"
+    </FilesMatch>
+</IfModule>
+
+Options -Indexes

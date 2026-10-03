@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Flotteo">
+    <rect width="64" height="64" fill="#206bc4"/>
+    <g fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"
+       transform="translate(32 32) scale(0.72) translate(-32 -32)">
+        <path d="M14 42h-3V31l4-11h38l4 11v11h-3"/>
+        <path d="M15 34h34"/>
+        <circle cx="21" cy="40" r="3"/>
+        <circle cx="45" cy="40" r="3"/>
+    </g>
+</svg>

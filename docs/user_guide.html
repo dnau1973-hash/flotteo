@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="fr" data-bs-theme="light">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Guide de l&#039;utilisateur — Flotteo</title>
+    <link rel="stylesheet" href="/assets/tabler/css/tabler.min.css">
+    <link rel="stylesheet" href="/assets/css/flotteo.css">
+</head>
+<body>
+<div class="page">
+    <aside class="navbar-vertical navbar-expand-md" data-bs-theme="dark">
+        <div class="container-fluid">
+            <h1 class="navbar-brand navbar-brand-autodark">
+                <a href="/dashboard" class="text-white">Flotteo</a>
+            </h1>
+            <div class="navbar-collapse">
+                <ul class="navbar-nav pt-lg-3"><li class="nav-item"><a class="nav-link active" href="/docs/user_guide"><i class="fa-solid fa-book me-2" aria-hidden="true"></i>Guide de l&#039;utilisateur</a></li><li class="nav-item"><a class="nav-link" href="/docs/changelog"><i class="fa-solid fa-file-lines me-2" aria-hidden="true"></i>Journal des modifications</a></li><li class="nav-item"><a class="nav-link" href="/docs/features"><i class="fa-solid fa-list me-2" aria-hidden="true"></i>Registre des fonctionnalités</a></li><li class="nav-item"><a class="nav-link" href="/docs/qa_recette"><i class="fa-solid fa-check me-2" aria-hidden="true"></i>Registre de recette &amp; qualité</a></li></ul>
+                <ul class="navbar-nav mt-3">
+                    <li class="nav-item"><a class="nav-link" href="/dashboard">Retour à l'application</a></li>
+                </ul>
+            </div>
+        </div>
+    </aside>
+    <div class="page-wrapper">
+        <header class="navbar navbar-expand-md d-print-none">
+            <div class="container-xl"><h2 class="page-title"><i class="fa-solid fa-book me-2" aria-hidden="true"></i>Guide de l&#039;utilisateur</h2></div>
+        </header>
+        <div class="page-body">
+            <div class="container-xl">
+                <div class="card">
+                    <div class="card-body markdown">
+<h1>Guide de l&#039;utilisateur — Flotteo</h1>
+<p>Flotteo suit un parc de véhicules d&#039;entreprise : entrées et sorties, révisions, incidents, échéances de fin de contrat, et la messagerie qui prévient de tout cela.</p>
+<p>Ce guide décrit les écrans tels qu&#039;ils sont réellement implémentés. Pour le détail technique, consultez le <a href="../cahier_des_charges_flotteo.md">cahier des charges</a>.</p>
+<hr class="my-4">
+<h2>1. Prise en main</h2>
+<h3>Se connecter</h3>
+<p>Rendez-vous sur l&#039;adresse de l&#039;application. L&#039;assistant d&#039;installation ne s&#039;affiche qu&#039;une fois, tant que l&#039;application n&#039;est pas configurée. Après installation, il se referme automatiquement et son adresse devient inaccessible.</p>
+<p>L&#039;accès à <code>/install</code> est refusé dès qu&#039;une installation est constatée : impossible d&#039;écraser par accident une base déjà en service.</p>
+<h3>Les trois niveaux d&#039;accès</h3>
+<div class="table-responsive my-3"><table class="table table-vcenter card-table"><thead><tr><th class="text-left">Niveau</th><th class="text-left">Peut</th></tr></thead><tbody><tr><td class="text-left"><strong>Lecture</strong></td><td class="text-left">Consulter les véhicules, révisions, incidents, échéances et les tableaux de bord.</td></tr><tr><td class="text-left"><strong>Modification</strong></td><td class="text-left">Créer et éditer véhicules, révisions et incidents.</td></tr><tr><td class="text-left"><strong>Administration</strong></td><td class="text-left">Tout ce qui précède, plus les utilisateurs, les référentiels et les paramètres.</td></tr></tbody></table></div>
+<p>La barre supérieure n&#039;affiche que les modules accessibles à votre niveau. Paramètres, Référentiels et Utilisateurs n&#039;apparaissent pas pour un profil « Modification ».</p>
+<h3>La barre supérieure</h3>
+<p>Huit entrées, de gauche à droite : <strong>Tableau de bord</strong>, <strong>Véhicules</strong>, <strong>Révisions</strong>, <strong>Incidents</strong>, <strong>Échéances</strong>, <strong>Référentiels</strong>, <strong>Paramètres</strong>, <strong>Utilisateurs</strong>.</p>
+<p>L&#039;entrée courante est signalée par un liseré bleu en dessous de son nom. <strong>À partir de 1200 px de largeur d&#039;écran</strong>, la barre affiche toutes ses entrées d&#039;un seul tenant. <strong>En dessous de 1200 px</strong> — tablette, petit portable, fenêtre partagée — elle se replie derrière le bouton de menu : cliquez dessus pour ouvrir la liste, où l&#039;entrée courante apparaît en gras. Ce repli évite que les entrées débordent de l&#039;écran et forcent un défilement latéral.</p>
+<h3>La largeur des pages</h3>
+<p>Les pages occupent toute la largeur de la fenêtre, avec une petite marge de chaque côté. Sur un grand écran, les cartes, les tableaux et les graphiques profitent donc de toute la place disponible.</p>
+<ul>
+<li>Un <strong>tableau</strong> trop large pour la place disponible se comporte bien : il défile de l&#039;intérieur de sa carte, et la page entière ne bouge pas.</li><li><strong>Aucun défilement latéral</strong> de la page n&#039;est nécessaire, quelle que soit la largeur de la fenêtre.</li></ul>
+<hr class="my-4">
+<h2>2. Tableau de bord</h2>
+<p>Synthèse chiffrée du parc : indicateurs clés, coût d&#039;entretien, répartition par modèle, incidents ouverts, échéancier. Chaque graphique dispose d&#039;un équivalent numérique lisible, pour ne rien dépendre de la seule représentation graphique.</p>
+<hr class="my-4">
+<h2>3. Véhicules</h2>
+<p>Liste filtrable et fiche détaillée par véhicule : caractéristiques, historique d&#039;entretien, incidents, modèle, entité propriétaire, organisme loueur et lieu d&#039;exploitation.</p>
+<p>La création et l&#039;édition passent par une modale. La suppression est refusée tant que le véhicule est rattaché à des données qui le référencent.</p>
+<hr class="my-4">
+<h2>4. Révisions &amp; entretien</h2>
+<p>Suivi des interventions : date, type, montant, kilométrage. Le lien avec le véhicule et le type d&#039;intervention provient des référentiels.</p>
+<hr class="my-4">
+<h2>5. Incidents &amp; sinistres</h2>
+<p>Signalement et suivi d&#039;un sinistre, avec pièce jointe téléchargeable depuis sa fiche.</p>
+<hr class="my-4">
+<h2>6. Échéances</h2>
+<p>Suivi des fins de contrat : échéancier trié par urgence croissante, filtre par palier d&#039;anticipation. Le nombre de véhicules de chaque filtre est affiché en badge.</p>
+<hr class="my-4">
+<h2>7. Référentiels</h2>
+<p>Les tables de paramétrage qui alimentent le reste de l&#039;application. Six référentiels, accessibles par l&#039;onglet correspondant. <strong>L&#039;onglet du référentiel courant est marqué d&#039;un trait bleu en dessous de son nom</strong> — repère utile pour savoir d&#039;un coup d&#039;œil quelle table est affichée.</p>
+<div class="table-responsive my-3"><table class="table table-vcenter card-table"><thead><tr><th class="text-left">Référentiel</th><th class="text-left">Champs</th></tr></thead><tbody><tr><td class="text-left"><strong>Marques</strong></td><td class="text-left">Nom de la marque</td></tr><tr><td class="text-left"><strong>Modèles</strong></td><td class="text-left">Marque, modèle</td></tr><tr><td class="text-left"><strong>Entités propriétaires</strong></td><td class="text-left">Raison sociale, code interne</td></tr><tr><td class="text-left"><strong>Organismes loueurs</strong></td><td class="text-left">Raison sociale, email de contact, téléphone</td></tr><tr><td class="text-left"><strong>Lieux d&#039;exploitation</strong></td><td class="text-left">Site ou dépôt, ville</td></tr><tr><td class="text-left"><strong>Types d&#039;intervention</strong></td><td class="text-left">Libellé de la prestation, catégorie</td></tr></tbody></table></div>
+<h3>Ajouter une entrée</h3>
+<p>Le bouton <strong>Ajouter</strong> ouvre une modale. Les champs marqués d&#039;un astérisque sont obligatoires. <strong>Enregistrer</strong> valide puis ferme.</p>
+<p>Si une valeur est refusée, le message s&#039;affiche dans la page : un champ obligatoire vide, une adresse email mal formée, ou une catégorie inconnue.</p>
+<h3>Modifier une entrée</h3>
+<p>Le bouton crayon de la ligne concernée ouvre la même modale, pré-remplie avec les valeurs enregistrées. Le titre passe de « Ajouter » à « Modifier ».</p>
+<p>Si la modale s&#039;ouvre vide alors que vous veniez de cliquer sur le crayon, faites un rechargement forcé de la page (Ctrl+Maj+R) : une version ancienne du script est probablement encore en cache dans le navigateur.</p>
+<h3>Supprimer une entrée</h3>
+<p>Le bouton corbeille demande confirmation avant d&#039;agir — une confirmation explicite, jamais une boîte de dialogue native du navigateur.</p>
+<p><strong>Une suppression peut être refusée</strong> : c&#039;est le cas lorsqu&#039;un véhicule ou un entretien référence encore l&#039;entrée. Le message l&#039;indique explicitement. Supprimez ou réaffectez d&#039;abord les données qui en dépendent.</p>
+<h3>Bon à savoir</h3>
+<ul>
+<li>Les modèles dépendent des marques : une marque doit exister avant d&#039;être affectée à un modèle. Le menu déroulant de la modale ne propose que les marques existantes.</li><li>Les catégories de type d&#039;intervention sont une liste fermée. Une valeur hors liste est ramenée à « Autre ».</li></ul>
+<hr class="my-4">
+<h2>8. Paramètres</h2>
+<p>La page se parcourt par une <strong>navigation verticale</strong> à gauche. La section choisie s&#039;affiche à droite ; l&#039;entrée courante est signalée.</p>
+<p>Chaque section a son propre bouton <strong>Enregistrer</strong> et n&#039;enregistre que ses propres réglages : enregistrer une section ne touche pas les autres.</p>
+<h3>Section « Messagerie »</h3>
+<p>Détermine comment l&#039;application envoie ses emails.</p>
+<p><strong>Mode d&#039;envoi.</strong> Deux choix :</p>
+<ul>
+<li><strong>Frontal PHP natif</strong> — délègue l&#039;envoi à la configuration PHP du serveur. C&#039;est le choix par défaut, sans réglage supplémentaire.</li><li><strong>Serveur SMTP</strong> — l&#039;application adresse elle-même votre serveur de messagerie.</li></ul>
+<p><strong>Réglages du serveur SMTP</strong> (toujours affichés, mais utilisés uniquement si le mode « Serveur SMTP » est sélectionné) :</p>
+<div class="table-responsive my-3"><table class="table table-vcenter card-table"><thead><tr><th class="text-left">Champ</th><th class="text-left">À quoi ça sert</th><th class="text-left">Exemple</th></tr></thead><tbody><tr><td class="text-left">Serveur</td><td class="text-left">Nom d&#039;hôte du serveur</td><td class="text-left"><code>smtp.exemple.fr</code></td></tr><tr><td class="text-left">Port</td><td class="text-left">Port de connexion</td><td class="text-left"><code>587</code></td></tr><tr><td class="text-left">Chiffrement</td><td class="text-left">Mode de chiffrement</td><td class="text-left"><code>STARTTLS</code></td></tr><tr><td class="text-left">Identifiant</td><td class="text-left">Compte de connexion</td><td class="text-left"><code>alerte@exemple.fr</code></td></tr><tr><td class="text-left">Mot de passe</td><td class="text-left">Secret du compte</td><td class="text-left">—</td></tr></tbody></table></div>
+<p><strong>Le certificat du serveur est vérifié.</strong> Un certificat auto-signé ou expiré sera refusé, et le message d&#039;erreur le dira explicitement. Si votre hébergeur utilise un certificat interne, installez son autorité de certification sur le serveur plutôt que de contourner la vérification.</p>
+<p><strong>Adresse expéditrice.</strong> L&#039;adresse présentée aux destinataires. La plupart des serveurs exigent qu&#039;elle appartienne au domaine que vous déclarez.</p>
+<blockquote class="blockquote"><strong>Mot de passe.</strong> Le mot de passe enregistré n&#039;est <strong>jamais</strong> renvoyé au navigateur.</blockquote>
+<blockquote class="blockquote">Si le champ est laissé vide, la valeur enregistrée est conservée. Pour la changer,</blockquote>
+<blockquote class="blockquote">saisissez une nouvelle valeur ; pour l&#039;effacer, cochez la case dédiée.</blockquote>
+<p><strong>Vérifier la configuration.</strong> Un bouton <strong>Envoyer un message de test</strong> envoie un courriel à l&#039;adresse de votre choix.</p>
+<blockquote class="blockquote">Le test porte sur les valeurs <strong>actuellement saisies</strong>, pas sur celles enregistrées.</blockquote>
+<blockquote class="blockquote">Vous pouvez donc valider une configuration avant de l&#039;enregistrer. Seul le mot de</blockquote>
+<blockquote class="blockquote">passe fait exception : il retombe sur la valeur enregistrée, puisqu&#039;il n&#039;est jamais</blockquote>
+<blockquote class="blockquote">affiché.</blockquote>
+<p>Le résultat s&#039;affiche sous le bouton. En cas d&#039;échec, le message indique la cause réelle : port fermé, certificat non reconnu, identifiants refusés, adresse refusée.</p>
+<h3>Section « Alertes »</h3>
+<p><strong>Activation.</strong> L&#039;interrupteur suspend ou réactive l&#039;envoi des rappels. Suspendre n&#039;efface aucun réglage.</p>
+<p><strong>Paliers d&#039;anticipation.</strong> Trois délais, exprimés en jours avant la date de sortie prévue. Un palier à 0 est ignoré. Les paliers actifs sont rappelés sous les champs.</p>
+<p><strong>Destinataire des rappels.</strong> Adresse unique qui reçoit le récapitulatif des véhicules concernés. Laisser vide suspend l&#039;envoi.</p>
+<p><strong>Exécution.</strong> Le bouton <strong>Envoyer le récapitulatif</strong> déclenche un envoi immédiat, désactivé lorsque les alertes sont suspendues. La commande <code>cron</code> affichée permet d&#039;automatiser un envoi hebdomadaire.</p>
+<hr class="my-4">
+<h2>9. Utilisateurs</h2>
+<p>Création et édition des comptes, avec attribution du niveau d&#039;accès.</p>
+<h3>Les cartes de profil</h3>
+<p>Les comptes ne sont pas présentés dans un tableau mais dans une <strong>grille de cartes</strong>, sur le modèle des cartes de profil de Tabler. Chaque carte porte un bandeau coloré dont la teinte dépend du rôle, une photo ou des initiales, le nom, l&#039;adresse email, le badge du niveau d&#039;accès, l&#039;état du compte et sa date de création.</p>
+<p>La grille se réorganise selon la largeur de la fenêtre : <strong>trois cartes par ligne</strong> sur un grand écran, <strong>deux</strong> à partir de 768 px, <strong>une seule</strong> en dessous. Rien n&#039;est masqué, la page entière défile comme les autres.</p>
+<p>Deux actions seulement sont proposées sur chaque carte : le bouton <strong>Éditer</strong> et le bouton <strong>Supprimer</strong>. Sur votre propre carte, <strong>Supprimer est absent</strong> — on ne peut pas se retirer soi-même l&#039;accès à l&#039;application.</p>
+<h3>Ajouter un compte</h3>
+<p>Le bouton <strong>Ajouter</strong> ouvre une modale. Les champs marqués d&#039;un astérisque sont obligatoires : nom d&#039;utilisateur, adresse email, mot de passe et niveau d&#039;accès.</p>
+<p>Vous pouvez <strong>déposer une photo</strong> depuis votre ordinateur. Trois formats sont acceptés, jusqu&#039;à 8 Mo : <strong>JPEG, PNG et WEBP</strong>.</p>
+<h3>Modifier un compte</h3>
+<p>Le bouton crayon ouvre la même modale, pré-remplie. Le titre passe de « Ajouter » à « Modifier ».</p>
+<p>Deux points méritent attention :</p>
+<ul>
+<li><strong>La photo n&#039;est pas touchée</strong> si vous ne faites rien à son sujet. Renommer un compte ou changer son adresse email conserve l&#039;illustration existante.</li><li><strong>Pour retirer la photo</strong>, cochez la case « Supprimer l&#039;avatar » puis enregistrez. Si vous cochez cette case <em>et</em> désignez un fichier, <strong>c&#039;est le fichier qui gagne</strong> : la case est alors ignorée.</li></ul>
+<p>Si la modale s&#039;ouvre vide alors que vous veniez de cliquer sur le crayon, faites un rechargement forcé de la page (Ctrl+Maj+R) : une version ancienne du script est probablement encore en cache dans le navigateur.</p>
+<h3>Supprimer un compte</h3>
+<p>Le bouton corbeille demande confirmation avant d&#039;agir — une confirmation explicite, jamais une boîte de dialogue native du navigateur.</p>
+<p><strong>Une suppression peut être refusée</strong> : c&#039;est le cas du dernier compte administrateur. La règle protège l&#039;application d&#039;une perte d&#039;accès totale. Réaffectez le niveau d&#039;accès à un autre compte avant de supprimer celui-ci.</p>
+<h3>Bon à savoir</h3>
+<ul>
+<li><strong>La photo n&#039;est pas un document.</strong> Seuls les formats d&#039;image sont acceptés : un PDF ou un fichier GIF déposé à cet endroit sera refusé. Les pièces jointes des incidents acceptent, elles, le PDF.</li><li><strong>Le type réel du fichier est contrôlé</strong>, pas son extension. Renommer un fichier en <code>.png</code> ne le fait pas passer pour une image.</li><li><strong>Le dernier administrateur est protégé</strong>, quelle que soit la voie utilisée : ni la suppression ni la rétrogradation du dernier compte administrateur ne sont possibles.</li><li>Les photos sont stockées sous un <strong>nom aléatoire</strong>, sans votre nom d&#039;utilisateur dedans, dans un dossier où l&#039;exécution de programmes est interdite.</li></ul>
+<hr class="my-4">
+<h2>10. Documentation</h2>
+<p>Les quatre registres s&#039;ouvrent <strong>dedans l&#039;application</strong>, depuis les liens du pied de page de chaque écran. Comme les autres pages, ils affichent la barre supérieure, le fil de navigation et le pied de page : vous pouvez donc revenir au tableau de bord ou passer à un autre écran sans repasser par votre navigateur.</p>
+<ul>
+<li><strong>Guide utilisateur</strong> — ce document.</li><li><strong>Fonctionnalités</strong> — ce que la version courante sait faire.</li><li><strong>Journal des modifications</strong> — ce qui a changé, et quand.</li><li><strong>Recette QA</strong> — les cas de test et leur résultat.</li></ul>
+<p>La colonne de gauche liste les quatre registres ; le registre courant y est signalé par un fond bleu. Le contenu est affiché dans une carte, au format et aux polices du reste de l&#039;application.</p>
+<p><strong>Une astuce :</strong> les quatre pages sont également disponibles en fichiers autonomes, ouvrables sans connexion ni application en service — utile pour les conserver ou les transmettre. Elles sont régénérées par <code>php scripts/build_docs.php</code>.</p>
+<hr class="my-4">
+<h2>11. Résoudre un problème courant</h2>
+<div class="table-responsive my-3"><table class="table table-vcenter card-table"><thead><tr><th class="text-left">Symptôme</th><th class="text-left">Cause probable</th><th class="text-left">Solution</th></tr></thead><tbody><tr><td class="text-left">Aucun email ne part</td><td class="text-left">Alertes suspendues, ou destinataire vide</td><td class="text-left">Section « Alertes » : activez les alertes et renseignez le destinataire</td></tr><tr><td class="text-left">Le test d&#039;envoi échoue sur le certificat</td><td class="text-left">Certificat auto-signé du serveur de messagerie</td><td class="text-left">Installez l&#039;autorité de certification sur le serveur</td></tr><tr><td class="text-left">Le test d&#039;envoi échoue sur l&#039;authentification</td><td class="text-left">Identifiant ou mot de passe erroné, ou champ identifiant laissé vide alors qu&#039;il est exigé</td><td class="text-left">Vérifiez les deux champs ; le mot de passe conservé est celui enregistré</td></tr><tr><td class="text-left">« Suppression impossible » sur un référentiel</td><td class="text-left">L&#039;entrée est encore utilisée par un véhicule ou un entretien</td><td class="text-left">Réaffectez ou supprimez d&#039;abord ces données</td></tr><tr><td class="text-left">Un module manque dans la barre</td><td class="text-left">Profil insuffisant</td><td class="text-left">Référentiels, Paramètres et Utilisateurs exigent le niveau Administration</td></tr><tr><td class="text-left">Le bouton « Éditer » n&#039;ouvre rien</td><td class="text-left">Script en cache</td><td class="text-left">Rechargement forcé de la page (Ctrl+Maj+R)</td></tr><tr><td class="text-left">« Type de fichier refusé » sur un avatar</td><td class="text-left">Le fichier n&#039;est pas une image, ou son extension ne correspond pas à son contenu</td><td class="text-left">Déposez un JPEG, PNG ou WEBP ; un PDF ou un GIF sont refusés à cet endroit</td></tr><tr><td class="text-left">L&#039;image n&#039;apparaît pas après l&#039;enregistrement</td><td class="text-left">La modale avait été ouverte avant le rechargement forcé</td><td class="text-left">Rechargez la page, rouvrez la modale, puis enregistrez</td></tr></tbody></table></div>
+                    </div>
+                    <div class="card-footer text-secondary small">
+                        Document généré depuis <code>user_guide.md</code> — Flotteo v1.0.1.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="/assets/tabler/js/tabler.min.js"></script>
+</body>
+</html>

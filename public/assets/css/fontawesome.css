@@ -1,0 +1,140 @@
+/*!
+ * Font Awesome Free 7.3.1 — sous-ensemble élagué aux 37 icônes réellement utilisées
+ * Auto-hébergé : aucun appel CDN, conformément à la règle « assets 100 % locaux ».
+ * Polices : SIL OFL 1.1 — Icônes : CC BY 4.0 — Code : MIT.
+ * Rendu via les classes <i class="fa-solid fa-…"> / <i class="fa-brands fa-…">, sans JavaScript.
+ */
+
+:root {
+  --fa-family-classic: 'Font Awesome 7 Free';
+  --fa-family-brands: 'Font Awesome 7 Brands';
+  --fa-font-solid: normal 900 1em/1 var(--fa-family-classic);
+  --fa-font-brands: normal 400 1em/1 var(--fa-family-brands);
+}
+
+@font-face {
+  font-family: "Font Awesome 7 Free";
+  font-style: normal;
+  font-weight: 900;
+  font-display: block;
+  src: url("../fonts/fa-solid-900.woff2");
+}
+
+@font-face {
+  font-family: "Font Awesome 7 Brands";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("../fonts/fa-brands-400.woff2");
+}
+
+
+.fa-solid,
+.fa-regular,
+.fa-brands,
+.fa-classic,
+.fas,
+.far,
+.fab,
+.fa {
+  --_fa-family: var(--fa-family, var(--fa-style-family, 'Font Awesome 7 Free'));
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: var(--fa-display, inline-block);
+  font-family: var(--_fa-family);
+  font-feature-settings: normal;
+  font-style: normal;
+  font-synthesis: none;
+  font-variant: normal;
+  font-weight: var(--fa-style, 900);
+  line-height: 1;
+  text-align: center;
+  text-rendering: auto;
+  width: var(--fa-width, 1.25em);
+}
+
+:is(.fas,
+.far,
+.fab,
+.fa-solid,
+.fa-regular,
+.fa-brands,
+.fa-classic,
+.fa)::before {
+  content: var(--fa)/"";
+}
+
+@supports not (content: ""/"") {
+  :is(.fas, .fab, .fa-solid, .fa-brands)::before { content: var(--fa); }
+}
+
+.fa-solid {
+  --fa-style: 900;
+}
+
+.fa-brands,.fab{--fa-family:var(--fa-family-brands);--fa-style:400}
+
+.fa-2x {
+  font-size: 2em;
+}.fa-2xs {
+  font-size: calc(10 / 16 * 1em); /* converts a 10px size into an em-based value that's relative to the scale's 16px base */
+  line-height: calc(1 / 10 * 1em); /* sets the line-height of the icon back to that of it's parent */
+  vertical-align: calc((6 / 10 - 0.375) * 1em); /* vertically centers the icon taking into account the surrounding text's descender */
+}.fa-2xl {
+  font-size: calc(32 / 16 * 1em); /* converts a 32px size into an em-based value that's relative to the scale's 16px base */
+  line-height: calc(1 / 32 * 1em); /* sets the line-height of the icon back to that of it's parent */
+  vertical-align: calc((6 / 32 - 0.375) * 1em); /* vertically centers the icon taking into account the surrounding text's descender */
+}.fa-fw,
+.fa-width-fixed {
+  --fa-width: 1.25em;
+}
+
+.fa-car{--fa:"\f1b9"}
+.fa-gauge-high{--fa:"\f625"}
+.fa-screwdriver-wrench{--fa:"\f7d9"}
+.fa-triangle-exclamation{--fa:"\f071"}
+.fa-gear{--fa:"\f013"}
+.fa-users{--fa:"\f0c0"}
+.fa-user{--fa:"\f007"}
+.fa-right-from-bracket{--fa:"\f2f5"}
+.fa-bars{--fa:"\f0c9"}
+.fa-bell{--fa:"\f0f3"}
+.fa-book{--fa:"\f02d"}
+.fa-file-lines{--fa:"\f15c"}
+.fa-trash-can{--fa:"\f2ed"}
+.fa-plus{--fa:"\+"}
+.fa-pen{--fa:"\f304"}
+.fa-magnifying-glass{--fa:"\f002"}
+.fa-check{--fa:"\f00c"}
+.fa-xmark{--fa:"\f00d"}
+.fa-envelope{--fa:"\f0e0"}
+.fa-eye{--fa:"\f06e"}
+.fa-wrench{--fa:"\f0ad"}
+.fa-calendar-days{--fa:"\f073"}
+.fa-chart-line{--fa:"\f201"}
+.fa-circle-info{--fa:"\f05a"}
+.fa-lock{--fa:"\f023"}
+.fa-chevron-down{--fa:"\f078"}
+.fa-list{--fa:"\f03a"}
+.fa-gears{--fa:"\f085"}
+.fa-sliders{--fa:"\f1de"}
+.fa-shield-halved{--fa:"\f3ed"}
+.fa-database{--fa:"\f1c0"}
+.fa-file-pdf{--fa:"\f1c1"}
+.fa-boxes{--fa:"\f468"}
+.fa-tag{--fa:"\f02b"}
+.fa-arrow-right-arrow-left{--fa:"\f0ec"}
+
+.fa-github{--fa:"\f09b"}
+.fa-slack{--fa:"\f198"}
+
+/* --- Intégration Tabler : la barre supérieure ------------------------------ */
+/* Largeur d'icône constante et gouttière : le trait du lien reste aligné
+   avec le texte quelle que soit la taille de police du menu. */
+.navbar-nav .nav-link > .fa-solid,
+.navbar-nav .nav-link > .fa-brands { width: 1.25em; margin-right: .5rem; text-align: center; }
+.navbar-brand > .fa-solid { width: auto; margin-right: .5rem; }
+.dropdown-item > .fa-solid,
+.dropdown-item > .fa-brands { width: 1.25em; margin-right: .5rem; text-align: center; }
+.dropdown-header > .fa-solid { width: 1.25em; margin-right: .5rem; }
+.btn > .fa-solid { width: auto; margin-right: .4rem; }

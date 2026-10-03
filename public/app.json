@@ -1,0 +1,29 @@
+{
+  "name": "Flotteo — Gestion de parc automobile",
+  "short_name": "Flotteo",
+  "description": "Gestion, pilotage opérationnel, analyse financière et traçabilité du cycle de vie d'un parc de véhicules de location.",
+  "lang": "fr",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "id": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f6f8fb",
+  "theme_color": "#206bc4",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "./assets/img/flotteo.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/img/flotteo-maskable.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "maskable"
+    }
+  ]
+}

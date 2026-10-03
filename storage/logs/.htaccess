@@ -1,0 +1,4 @@
+# Dossier de journalisation : jamais exposé par le serveur web.
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
