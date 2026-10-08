@@ -128,9 +128,16 @@ final class ParamController extends Controller
     /** Section demandée, ramenée à une valeur exploitable. */
     private function section(): string
     {
-        $sectione = (string) Request::param('section', '');
+        $sectione = (string) (Request::param('section') ?: Request::input('section', ''));
 
         return isset(self::SECTIONS[$sectione]) ? $sectione : self::SECTION_DEFAUT;
+    }
+
+    /** Raccourci vers la section Sauvegardes des paramètres. */
+    public function sauvegardes(): void
+    {
+        $this->guard(Auth::ROLE_ADMIN);
+        $this->redirect('/admin/parametres/sauvegardes');
     }
 
     public function index(): void

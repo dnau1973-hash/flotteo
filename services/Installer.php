@@ -331,7 +331,7 @@ final class Installer
                 'charset'  => 'utf8mb4',
             ], true) . ";\n";
 
-        return InstallState::ecrireAtomique(InstallState::configPath(), $contenu, 0600);
+        return InstallState::ecrireAtomique(InstallState::configPath(), $contenu, 0640);
     }
 
     /**

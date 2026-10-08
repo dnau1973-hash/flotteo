@@ -101,6 +101,30 @@ final class Backup
 
     // ---------------------------------------------------------------- historique
 
+    /** S'assure que la table sauvegardes existe en base de données. */
+    public static function assurerTable(): void
+    {
+        try {
+            Database::run('CREATE TABLE IF NOT EXISTS sauvegardes (
+                id                INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                fichier           VARCHAR(190) NOT NULL,
+                taille            INT UNSIGNED NOT NULL DEFAULT 0,
+                empreinte         CHAR(64) NULL,
+                tables_dump       TINYINT UNSIGNED NOT NULL DEFAULT 0,
+                fichiers_inclus   INT UNSIGNED NOT NULL DEFAULT 0,
+                samba_statut      ENUM(\'non_configure\',\'reussi\',\'echec\') NOT NULL DEFAULT \'non_configure\',
+                samba_message     VARCHAR(255) NULL,
+                samba_at          DATETIME NULL,
+                created_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                UNIQUE KEY uq_sauvegardes_fichier (fichier),
+                KEY idx_sauvegardes_date (created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
+        } catch (\PDOException $e) {
+            Logger::error('Création de la table sauvegardes impossible', $e);
+        }
+    }
+
     /**
      * Historique des archives, la plus récente d'abord.
      *
@@ -108,6 +132,7 @@ final class Backup
      */
     public static function historique(int $limite = 100): array
     {
+        self::assurerTable();
         try {
             return Database::all(
                 'SELECT * FROM sauvegardes ORDER BY created_at DESC, id DESC LIMIT ' . max(1, $limite)
@@ -121,6 +146,7 @@ final class Backup
     /** Une sauvegarde par son identifiant, ou null. */
     public static function find(int $id): ?array
     {
+        self::assurerTable();
         try {
             return Database::one('SELECT * FROM sauvegardes WHERE id = :id', ['id' => $id]);
         } catch (\PDOException $e) {
@@ -132,11 +158,12 @@ final class Backup
     /**
      * Enregistre une archive et retourne son identifiant.
      *
-     * @param array{fichier: string, taille: int, empreinte: string, tables_dump: int, fichiers_inclus: int, samba_statut: string, samba_message: ?string} $donnees
+     * @param array{fichier: string, taille: int, empreinte: string, tables_dump: int, fichiers_inclus: int, samba_statut: string, samba_message: ?string, created_at?: ?string} $donnees
      */
     public static function enregistrer(array $donnees): int
     {
-        return Database::insert('sauvegardes', [
+        self::assurerTable();
+        $champs = [
             'fichier'         => $donnees['fichier'],
             'taille'          => $donnees['taille'],
             'empreinte'       => $donnees['empreinte'],
@@ -145,7 +172,12 @@ final class Backup
             'samba_statut'    => $donnees['samba_statut'],
             'samba_message'   => $donnees['samba_message'],
             'samba_at'        => $donnees['samba_statut'] === 'non_configure' ? null : date('Y-m-d H:i:s'),
-        ]);
+        ];
+        if (!empty($donnees['created_at'])) {
+            $champs['created_at'] = $donnees['created_at'];
+        }
+
+        return Database::insert('sauvegardes', $champs);
     }
 
     /** Complète le verdict d'externalisation d'une archive. */

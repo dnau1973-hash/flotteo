@@ -411,6 +411,8 @@ final class BackupService
             ];
         }
 
+        self::synchroniser();
+
         $jours  = Backup::retentionJours();
         $limite = strtotime('-' . $jours . ' days');
         $dossier = self::dossier();
@@ -477,7 +479,125 @@ final class BackupService
     /** Vrai si `nom` est un nom d'archive produit par ce service. */
     public static function estNomArchive(string $nom): bool
     {
-        return preg_match('/^' . self::PREFIXE . '\d{4}-\d{2}-\d{2}_\d{4}\.zip$/', $nom) === 1;
+        return preg_match('/^' . self::PREFIXE . '\d{4}-\d{2}-\d{2}_\d{4}(?:_\d+|\d+)?\.zip$/', $nom) === 1;
+    }
+
+    /**
+     * Synchronise les archives physiques présentes dans `storage/backups/` avec
+     * la table `sauvegardes`.
+     *
+     * Détecte automatiquement les archives créées en ligne de commande, copiées
+     * manuellement ou conservées lors d'une réinstallation / restauration de la base.
+     * Reconstitue les métadonnées (taille, tables, fichiers, date) depuis le manifeste.
+     *
+     * @return int Nombre d'archives nouvellement synchronisées.
+     */
+    public static function synchroniser(): int
+    {
+        $dossier = self::dossier();
+        if (!is_dir($dossier)) {
+            return 0;
+        }
+
+        Backup::assurerTable();
+
+        $existants = [];
+        try {
+            $lignes = \Core\Database::all('SELECT id, fichier FROM sauvegardes');
+            foreach ($lignes as $l) {
+                $existants[(string) $l['fichier']] = (int) $l['id'];
+            }
+        } catch (\PDOException $e) {
+            Logger::error('Erreur lecture table sauvegardes pour synchronisation', $e);
+            return 0;
+        }
+
+        $synchronises = 0;
+        $entrees = (array) @scandir($dossier);
+
+        foreach ($entrees as $entree) {
+            if (!is_string($entree) || !self::estNomArchive($entree)) {
+                continue;
+            }
+
+            if (isset($existants[$entree])) {
+                continue;
+            }
+
+            $chemin = $dossier . '/' . $entree;
+            if (!is_file($chemin)) {
+                continue;
+            }
+
+            $taille = (int) @filesize($chemin);
+            if ($taille <= 0) {
+                continue;
+            }
+
+            $tables = 0;
+            $fichiersInclus = 0;
+            $dateCreation = null;
+
+            if (class_exists(\ZipArchive::class)) {
+                $zip = new \ZipArchive();
+                if ($zip->open($chemin) === true) {
+                    $manifesteBrut = $zip->getFromName('manifeste.json');
+                    if (is_string($manifesteBrut) && $manifesteBrut !== '') {
+                        $manifeste = json_decode($manifesteBrut, true);
+                        if (is_array($manifeste)) {
+                            $tables = (int) ($manifeste['tables'] ?? 0);
+                            $fichiersInclus = (int) ($manifeste['fichiers'] ?? 0);
+                            if (!empty($manifeste['genere_le'])) {
+                                $ts = strtotime((string) $manifeste['genere_le']);
+                                if ($ts !== false) {
+                                    $dateCreation = date('Y-m-d H:i:s', $ts);
+                                }
+                            }
+                        }
+                    }
+
+                    if ($tables === 0) {
+                        $sql = $zip->getFromName(self::DOSSIER_DONNEES . '/flotteo.sql');
+                        if (is_string($sql) && $sql !== '') {
+                            $tables = substr_count($sql, 'DROP TABLE IF EXISTS');
+                        }
+                    }
+
+                    $zip->close();
+                }
+            }
+
+            if ($dateCreation === null) {
+                if (preg_match('/' . self::PREFIXE . '(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/', $entree, $m) === 1) {
+                    $dateCreation = sprintf('%s-%s-%s %s:%s:00', $m[1], $m[2], $m[3], $m[4], $m[5]);
+                } else {
+                    $dateCreation = date('Y-m-d H:i:s', (int) @filemtime($chemin));
+                }
+            }
+
+            $empreinte = (string) (@hash_file('sha256', $chemin) ?: '');
+
+            try {
+                Backup::enregistrer([
+                    'fichier'         => $entree,
+                    'taille'          => $taille,
+                    'empreinte'       => $empreinte,
+                    'tables_dump'     => $tables,
+                    'fichiers_inclus' => $fichiersInclus,
+                    'samba_statut'    => 'non_configure',
+                    'samba_message'   => null,
+                    'created_at'      => $dateCreation,
+                ]);
+                $synchronises++;
+                Logger::info("Archive $entree synchronisee dans l'historique des sauvegardes");
+            } catch (\PDOException $e) {
+                Logger::error("Impossible d'enregistrer l'archive $entree lors de la synchronisation", $e);
+            }
+        }
+
+        self::purgerHistoriqueOrphelin();
+
+        return $synchronises;
     }
 
     /**
@@ -530,6 +650,7 @@ final class BackupService
      */
     public static function contexte(): array
     {
+        self::synchroniser();
         $client    = new SambaClient();
         $disponible = $client->disponible();
 

@@ -95,6 +95,7 @@ $router->post('/admin/dictionnaires/{type}/enregistrer', DictionaryController::c
 $router->post('/admin/dictionnaires/{type}/supprimer', DictionaryController::class, 'delete');
 
 // --- Administration : paramètres système ------------------------------------
+$router->get('/admin', ParamController::class, 'index');
 $router->get('/admin/parametres', ParamController::class, 'index');
 $router->get('/admin/parametres/{section}', ParamController::class, 'index');
 $router->post('/admin/parametres/{section}/enregistrer', ParamController::class, 'save');
@@ -111,6 +112,7 @@ $router->post('/admin/parametres/clear-table', ParamController::class, 'clearTab
 // Les réglages sont enregistrés par ParamController (section `sauvegardes`),
 // comme les autres paramètres ; ce contrôleur ne porte que les actions.
 // La section reste servie par ParamController::index.
+$router->get('/admin/sauvegardes',             ParamController::class,  'sauvegardes');
 $router->post('/admin/sauvegardes/lancer',     BackupController::class, 'lancer');
 $router->post('/admin/sauvegardes/purger',     BackupController::class, 'purger');
 $router->post('/admin/sauvegardes/supprimer',  BackupController::class, 'supprimer');

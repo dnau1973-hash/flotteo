@@ -33,7 +33,7 @@ final class BackupController extends Controller
     private const RETOUR = '/admin/parametres/sauvegardes';
 
     /** Motif du nom d'une archive produite par le service. */
-    private const MOTIF_NOM = '/^flotteo_backup_\d{4}-\d{2}-\d{2}_\d{4}\.zip$/';
+    private const MOTIF_NOM = '/^flotteo_backup_\d{4}-\d{2}-\d{2}_\d{4}(?:_\d+|\d+)?\.zip$/';
 
     /** Période de carence entre deux sauvegardes, en secondes. */
     private const CARENCE = 30;

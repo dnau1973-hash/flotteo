@@ -16,7 +16,11 @@ final class Database
             return self::$instance;
         }
 
-        $conf = require dirname(__DIR__) . '/config/database.php';
+        $fichier = dirname(__DIR__) . '/config/database.php';
+        if (is_file($fichier) && !is_readable($fichier)) {
+            @chmod($fichier, 0640);
+        }
+        $conf = require $fichier;
         $dsn = sprintf(
             'mysql:host=%s;port=%d;dbname=%s;charset=%s',
             $conf['host'],
