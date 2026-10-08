@@ -5,6 +5,9 @@ DirectoryIndex index.php
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
+    # Arrêter la réécriture si index.php est déjà la cible (évite les boucles internes)
+    RewriteRule ^index\.php$ - [L]
+
     # --- Ressources statiques ------------------------------------------------
     # Court-circuit explicite : assets, manifeste, favicon et pièces jointes
     # ne doivent JAMAIS être réécrits vers index.php. La condition -f/-d ci-dessous

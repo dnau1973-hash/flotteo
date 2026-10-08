@@ -26,11 +26,18 @@ Options -Indexes -MultiViews +FollowSymLinks
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
+    # Si la requête cible déjà public/ ou a déjà été redirigée en interne, arrêt immédiat
+    RewriteCond %{ENV:REDIRECT_STATUS} 200 [OR]
+    RewriteCond %{REQUEST_URI} (^|/)public(/|$) [NC,OR]
+    RewriteCond %{REQUEST_FILENAME} /public/ [NC]
+    RewriteRule ^ - [L]
+
+    RewriteRule ^public(?:/|$) - [L]
+
     # Interdire l'accès direct aux dossiers système hors public
-    RewriteRule ^(?:config|core|controllers|models|services|views|sql|scripts|storage|docs|bin)/ - [F,L]
+    RewriteRule ^(?:config|core|controllers|models|services|views|sql|scripts|storage|docs|bin)(?:/|$) - [F,L]
 
     # Rediriger vers public/
-    RewriteCond %{REQUEST_URI} !^/public/
     RewriteRule ^(.*)$ public/$1 [L]
 </IfModule>
 
