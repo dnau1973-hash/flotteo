@@ -18,7 +18,7 @@ use Core\Flash;
 use Core\Url;
 
 $app     = (require dirname(__DIR__, 2) . '/config/config.php')['app'];
-$base    = Url::base();
+$base    = Url::baseRoute();
 $flashes = Flash::pull();
 $user    = Core\Auth::user();
 

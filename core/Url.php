@@ -64,11 +64,29 @@ final class Url
         return ($repertoire === '' || $repertoire === '.') ? '' : $repertoire;
     }
 
+    /**
+     * Préfixe de base pour les routes applicatives.
+     * Conserve automatiquement `/index.php` si la requête courante y fait appel
+     * (par exemple sur un serveur où la réécriture d'URL Apache n'est pas activée).
+     */
+    public static function baseRoute(): string
+    {
+        $base = self::base();
+        $uri  = $_SERVER['REQUEST_URI'] ?? '';
+        if (str_contains($uri, '/index.php')) {
+            return $base . '/index.php';
+        }
+
+        return $base;
+    }
+
     /** URL absolue d'une route applicative : `to('/vehicules')`. */
     public static function to(string $chemin = '/'): string
     {
         $chemin = '/' . ltrim($chemin, '/');
-        return self::base() . ($chemin === '/' ? '/' : $chemin);
+        $base   = self::baseRoute();
+
+        return $base . ($chemin === '/' ? (str_ends_with($base, 'index.php') ? '' : '/') : $chemin);
     }
 
     /**

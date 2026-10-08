@@ -302,7 +302,7 @@ $admin = (string) ($admin ?? '');
 <div class="toast-container position-fixed bottom-0 end-0 p-3" id="flotteo-toasts"></div>
 
 <script src="<?= $e(Url::asset('tabler/js/tabler.min.js')) ?>"></script>
-<script>window.FLOTTEO = { base: <?= json_encode(Url::base(), JSON_UNESCAPED_SLASHES) ?>, token: <?= json_encode(Csrf::token(), JSON_UNESCAPED_SLASHES) ?> };</script>
+<script>window.FLOTTEO = { base: <?= json_encode(Url::baseRoute(), JSON_UNESCAPED_SLASHES) ?>, token: <?= json_encode(Csrf::token(), JSON_UNESCAPED_SLASHES) ?> };</script>
 <script src="<?= $e(Url::asset('js/app.js')) ?>"></script>
 <script src="<?= $e(Url::asset('js/install.js')) ?>"></script>
 </body>

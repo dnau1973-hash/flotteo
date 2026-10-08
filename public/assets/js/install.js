@@ -123,42 +123,51 @@
             retourTest.innerHTML = '';
 
             var charge = { _token: TOKEN };
+            var url = formulaireBdd.getAttribute('action');
 
-            fetch(formulaireBdd.getAttribute('action'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
-                body: new URLSearchParams(Object.assign({}, charge, parametresBdd())).toString()
-            })
-                .then(function (reponse) {
-                    return reponse.json().then(function (corps) {
-                        return { ok: reponse.ok, statut: reponse.status, corps: corps };
-                    });
-                })
-                .then(function (resultat) {
-                    var succes = Boolean(resultat.corps && resultat.corps.success);
-                    afficherRetour(
-                        succes ? 'succes' : 'echec',
-                        (resultat.corps && resultat.corps.message) || 'Réponse inattendue du serveur.',
-                        (resultat.corps && resultat.corps.detail) || ''
-                    );
-                    connexionValidee = succes;
+            if (window.location.pathname.indexOf('/index.php') !== -1 && url.indexOf('/index.php') === -1) {
+                var prefixeBase = (window.FLOTTEO && window.FLOTTEO.base) || '';
+                url = prefixeBase ? url.replace(prefixeBase, prefixeBase + '/index.php') : '/index.php' + url;
+            }
 
-                    if (succes) {
-                        memoriserParametres();
-                        basculerEtape(2, true);
-                        var champNom = document.getElementById('nom_d_utilisateur');
-                        if (champNom) { champNom.focus(); }
-                    } else if (resultat.statut === 419) {
-                        window.flotteoToast('Jeton de sécurité expiré : rechargez la page.', 'warning');
-                    }
-                })
-                .catch(function () {
-                    afficherRetour('echec', 'Le serveur n\'a pas répondu. Vérifiez que l\'URL de l\'application est correcte.');
-                })
-                .then(function () {
-                    boutonTester.disabled = false;
-                    boutonTester.textContent = 'Tester la connexion';
+            try {
+                var reponse = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+                    body: new URLSearchParams(Object.assign({}, charge, parametresBdd())).toString()
                 });
+
+                var corps = null;
+                var texte = await reponse.text();
+                try {
+                    corps = JSON.parse(texte);
+                } catch (e) {
+                    afficherRetour('echec', 'Réponse serveur non-JSON (code HTTP ' + reponse.status + '). Vérifiez la configuration Apache mod_rewrite / AllowOverride.');
+                    return;
+                }
+
+                var succes = Boolean(corps && corps.success);
+                afficherRetour(
+                    succes ? 'succes' : 'echec',
+                    (corps && corps.message) || 'Réponse inattendue du serveur.',
+                    (corps && corps.detail) || ''
+                );
+                connexionValidee = succes;
+
+                if (succes) {
+                    memoriserParametres();
+                    basculerEtape(2, true);
+                    var champNom = document.getElementById('nom_d_utilisateur');
+                    if (champNom) { champNom.focus(); }
+                } else if (reponse.status === 419) {
+                    window.flotteoToast('Jeton de sécurité expiré : rechargez la page.', 'warning');
+                }
+            } catch (err) {
+                afficherRetour('echec', 'Le serveur n\'a pas répondu. Vérifiez que l\'URL de l\'application est correcte.');
+            } finally {
+                boutonTester.disabled = false;
+                boutonTester.textContent = 'Tester la connexion';
+            }
         });
     }
 
@@ -237,6 +246,10 @@
             memoriserParametres();
             basculerEtape(3, true);
             if (boutonInstaller) { boutonInstaller.disabled = true; }
+            if (window.location.pathname.indexOf('/index.php') !== -1 && formulaireAdmin.action.indexOf('/index.php') === -1) {
+                var prefixeBase = (window.FLOTTEO && window.FLOTTEO.base) || '';
+                formulaireAdmin.action = prefixeBase ? formulaireAdmin.action.replace(prefixeBase, prefixeBase + '/index.php') : '/index.php' + formulaireAdmin.action;
+            }
             formulaireAdmin.submit();
         });
     }
