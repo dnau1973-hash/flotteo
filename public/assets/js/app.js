@@ -6,6 +6,7 @@
 (function () {
     'use strict';
 
+    window.bootstrap = window.bootstrap || window.tabler;
     var base = (window.FLOTTEO && window.FLOTTEO.base) || '';
     var TOKEN = (window.FLOTTEO && window.FLOTTEO.token) || '';
 
