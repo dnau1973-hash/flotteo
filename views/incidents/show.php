@@ -97,13 +97,45 @@ $tailleMax = round($config['securite']['taille_max_upload'] / 1048576);
                 <?php else: ?>
                     <ul class="list-unstyled liste-fichiers">
                         <?php foreach ($fichiers as $f): ?>
+                            <?php $vignette = Incident::aVignette($f); ?>
                             <li class="py-2">
                                 <div class="d-flex align-items-center">
-                                    <svg class="icon text-primary me-2" viewBox="0 0 24 24" width="20" height="20" fill="none"
-                                         stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
-                                         aria-hidden="true">
-                                        <path d="M14 3v5h5"/><path d="M19 21h-14a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h9l5 5v11a2 2 0 0 1 -2 2z"/>
-                                    </svg>
+                                    <?php if ($vignette): ?>
+                                        <!--
+                                            La vignette pointe vers l'action d'aperçu, qui
+                                            sert l'image en ligne ; `download()` force au
+                                            contraire `Content-Disposition: attachment`, et
+                                            un navigateur n'affiche rien depuis une réponse
+                                            d'attachement. La réponse est privée
+                                            (`private, no-store`) : elle ne doit pas
+                                            finir dans un cache partagé.
+                                        -->
+                                        <a class="vignette-fichier me-2"
+                                           href="<?= $e($base_url . '/incidents/fichier/apercu?id=' . (int) $f['id']) ?>"
+                                           target="_blank" rel="noopener"
+                                           title="Agrandir l'image dans un nouvel onglet">
+                                            <img src="<?= $e($base_url . '/incidents/fichier/apercu?id=' . (int) $f['id']) ?>"
+                                                 alt="<?= $e((string) $f['nom_original']) ?>"
+                                                 width="56" height="56" loading="lazy" decoding="async">
+                                        </a>
+                                    <?php else: ?>
+                                        <?php
+                                        /*
+                                         * Deux cas aboutissent ici, d'où un libellé
+                                         * calculé : un format sans vignette (le PDF n'en
+                                         * définit pas) et une image dont le fichier a
+                                         * disparu du stockage. Sans cette nuance, l'icône
+                                         * PDF s'afficherait sur une photographie manquante.
+                                         */
+                                        $pdf     = (string) $f['mime'] === 'application/pdf';
+                                        $absente = Incident::estImage($f) && !Incident::fichierPresent($f);
+                                        ?>
+                                        <span class="vignette-fichier vignette-fichier-icone me-2"
+                                              title="<?= $absente ? 'Fichier absent du stockage' : 'Aucun aperçu pour ce format' ?>"
+                                              aria-hidden="true">
+                                            <i class="fa-solid <?= $pdf ? 'fa-file-pdf' : 'fa-file-lines' ?>"></i>
+                                        </span>
+                                    <?php endif; ?>
                                     <div class="flex-fill">
                                         <a href="<?= $e($base_url . '/incidents/fichier/telecharger?id=' . (int) $f['id']) ?>"
                                            class="text-reset d-block text-truncate"><?= $e((string) $f['nom_original']) ?></a>

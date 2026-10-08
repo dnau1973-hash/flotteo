@@ -14,6 +14,11 @@ declare(strict_types=1);
  *   FLOTTEO_ADMIN_PASSWORD='...' \
  *   php scripts/install.php
  *
+ * FLOTTEO_GITHUB_TOKEN est facultative : renseignee, elle est ecrite dans
+ * config/secrets.php (0640) et la recherche de mise a jour dispose du quota
+ * etendu de 5 000 requetes/heure ; omise, l'application reste en acces anonyme
+ * fonctionnel (60 requetes/heure sur un depot public).
+ *
  * Les identifiants proviennent de config/database.php, modifiable au besoin.
  */
 
@@ -79,9 +84,11 @@ $verif = Installer::verifierBase($base);
 $sortie('  ' . $verif['message']);
 
 $resultat = Installer::executer($base, [
-    'nom'        => 'Administrateur',
-    'email'      => $email,
-    'motdepasse' => $mdp,
+    'nom'          => 'Administrateur',
+    'email'        => $email,
+    'motdepasse'   => $mdp,
+    // Facultatif : absent ou vide, l'installation se termine en accès anonyme.
+    'github_token' => (string) (getenv('FLOTTEO_GITHUB_TOKEN') ?: ''),
 ]);
 
 if (!$resultat['succes']) {

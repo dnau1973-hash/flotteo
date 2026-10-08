@@ -145,7 +145,7 @@ foreach ($paliers as $p) {
                     <table class="table table-vcenter card-table table-hover">
                         <thead>
                         <tr>
-                            <th class="w-1">Immat.</th>
+                            <th class="col-immat">Immat.</th>
                             <th>Véhicule</th>
                             <th>Entité</th>
                             <th>Loueur</th>
@@ -159,7 +159,21 @@ foreach ($paliers as $p) {
                         <?php foreach ($affiches as $v): ?>
                             <?php $reste = (int) $v['jours_restants']; ?>
                             <tr>
-                                <td class="fw-bold"><?= $e($v['immatriculation']) ?></td>
+                                <td class="fw-bold col-immat">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <?php if (!empty($v['marque_logo'])): ?>
+                                            <a href="<?= $e($base_url . '/vehicules/voir?id=' . (int) $v['id']) ?>" class="flex-shrink-0" title="<?= $e($v['marque_nom']) ?>">
+                                                <img src="<?= $e(\Core\Url::upload('marques/' . $v['marque_logo'])) ?>"
+                                                     alt="<?= $e($v['marque_nom']) ?>"
+                                                     class="rounded bg-white p-1 border shadow-xs"
+                                                     style="height: 34px; width: auto; max-width: 52px; object-fit: contain;">
+                                            </a>
+                                        <?php endif; ?>
+                                        <a href="<?= $e($base_url . '/vehicules/voir?id=' . (int) $v['id']) ?>" class="text-reset text-nowrap">
+                                            <?= $e($v['immatriculation']) ?>
+                                        </a>
+                                    </div>
+                                </td>
                                 <td><?= $e($v['marque_nom'] . ' ' . $v['modele_nom']) ?></td>
                                 <td class="text-secondary"><?= $e($v['entite_nom']) ?></td>
                                 <td class="text-secondary"><?= $e($v['loueur_nom']) ?></td>

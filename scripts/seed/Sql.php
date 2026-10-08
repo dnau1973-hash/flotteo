@@ -63,6 +63,7 @@ final class Sql
             'SET FOREIGN_KEY_CHECKS = 0;',
             '',
             'TRUNCATE TABLE incidents_fichiers;',
+            'TRUNCATE TABLE sauvegardes;',
             'TRUNCATE TABLE incidents;',
             'TRUNCATE TABLE maintenances;',
             'TRUNCATE TABLE vehicules;',

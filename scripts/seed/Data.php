@@ -148,6 +148,14 @@ final class Data
             ['cle' => 'smtp_chiffrement',   'valeur' => 'tls'],
             ['cle' => 'smtp_user',          'valeur' => ''],
             ['cle' => 'smtp_password',      'valeur' => ''],
+            ['cle' => 'sauvegarde_retention_jours', 'valeur' => '30'],
+            ['cle' => 'sauvegarde_partage_actif',    'valeur' => '0'],
+            ['cle' => 'samba_hote',                 'valeur' => ''],
+            ['cle' => 'samba_partage',              'valeur' => ''],
+            ['cle' => 'samba_repertoire',           'valeur' => ''],
+            ['cle' => 'samba_utilisateur',          'valeur' => ''],
+            ['cle' => 'samba_mot_de_passe',         'valeur' => ''],
+            ['cle' => 'samba_domaine',              'valeur' => ''],
             ['cle' => 'jeu_donnees_demo',   'valeur' => '1'],
         ];
     }

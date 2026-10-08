@@ -13,6 +13,10 @@
 # --- Secrets & configuration propre au poste ---
 # Écrit par l'installateur, contient les identifiants de connexion MySQL.
 config/database.php
+# Jeton personnel GitHub éventuellement renseigné pour la recherche de mise à
+# jour. Doit rester hors du dépôt : un `ghp_…` versionné est divulgué à chaque
+# clone et jamais révoqué par une rotation locale.
+config/secrets.php
 .env
 .env.*
 *.key

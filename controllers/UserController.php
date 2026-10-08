@@ -32,6 +32,14 @@ final class UserController extends Controller
     /** Création ou mise à jour d'un utilisateur (POST). */
     public function save(): void
     {
+        $tronque = $this->envoiTronque();
+        if ($tronque !== null) {
+            if (Request::isJson()) {
+                $this->ko($tronque);
+            }
+            Flash::add('danger', $tronque);
+            $this->redirect('/admin/utilisateurs');
+        }
         $this->guardPost(Auth::ROLE_ADMIN);
 
         $id    = Request::int('id');
@@ -105,7 +113,7 @@ final class UserController extends Controller
                 Flash::add('success', 'Utilisateur créé.');
             }
         } catch (\PDOException $e) {
-            Core\Logger::error('Enregistrement utilisateur impossible', $e);
+            Logger::error('Enregistrement utilisateur impossible', $e);
             // Le fichier éventuellement déposé reste orphelin : on le retire
             // plutôt que de le laisser sur le disque sans compte associé.
             if ($avatar !== null) {
@@ -115,60 +123,6 @@ final class UserController extends Controller
         }
 
         $this->redirect('/admin/utilisateurs');
-    }
-
-    /**
-     * Dépose un avatar téléversé et retourne son nom de fichier, ou null.
-     *
-     * Les erreurs de dépôt sont ajoutées à `$erreurs` : l'appelant abandonne
-     * l'enregistrement, l'utilisateur voit la raison précise — format refusé,
-     * fichier trop lourd — au lieu d'un message générique.
-     */
-    private function deposerAvatar(array &$erreurs): ?string
-    {
-        $fichier = $_FILES['avatar'] ?? null;
-        if (!is_array($fichier) || !isset($fichier['error']) || (int) $fichier['error'] === UPLOAD_ERR_NO_FILE) {
-            return null;
-        }
-
-        $depot = Upload::store($fichier, User::DOSSIER_AVATAR, User::MIMES_AVATAR);
-        if ($depot['erreur'] !== null) {
-            $erreurs[] = 'Avatar : ' . mb_strtolower((string) $depot['erreur']);
-
-            return null;
-        }
-
-        return $depot['chemin'];
-    }
-
-    /**
-     * Écrit l'avatar en base et retire l'ancien fichier devenu inutile.
-     *
-     * Un fichier nouvellement déposé l'emporte sur la case de suppression :
-     * l'interface masque cette option dès qu'un fichier est choisi,
-     * pour que la demande ne soit jamais formulée par l'utilisateur.
-     *
-     * @param ?string $avatar      Nouveau fichier déposé, ou null
-     * @param bool    $suppression L'utilisateur a demandé la suppression
-     * @param string  $precedent   Nom du fichier actuellement enregistré
-     */
-    private function appliquerAvatar(int $id, ?string $avatar, bool $suppression, string $precedent): void
-    {
-        $nouveau = $avatar ?? ($suppression ? null : $precedent);
-
-        // Rien à écrire : ni nouveau fichier, ni suppression demandée.
-        if ($avatar === null && !$suppression) {
-            return;
-        }
-        if ($nouveau === $precedent) {
-            return;
-        }
-
-        User::setAvatar($id, $nouveau);
-
-        if ($precedent !== '' && $precedent !== $nouveau) {
-            Upload::remove(User::DOSSIER_AVATAR, $precedent);
-        }
     }
 
     /** Suppression d'un utilisateur (POST). */
@@ -190,7 +144,7 @@ final class UserController extends Controller
             User::delete($id);
             Flash::add('success', 'Utilisateur supprimé.');
         } catch (\PDOException $e) {
-            Core\Logger::error("Suppression utilisateur #$id impossible", $e);
+            Logger::error("Suppression utilisateur #$id impossible", $e);
             Flash::add('danger', 'Suppression impossible.');
         }
 
@@ -218,4 +172,5 @@ final class UserController extends Controller
         Flash::add('danger', $message);
         $this->redirect('/admin/utilisateurs');
     }
+
 }

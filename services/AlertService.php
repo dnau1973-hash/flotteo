@@ -26,13 +26,34 @@ final class AlertService
         $du      = date('Y-m-d');
         $au      = date('Y-m-d', strtotime("+$max days"));
 
-        $vehicules = Database::all(
-            Vehicle::SELECT_BASE . '
-             WHERE v.date_sortie_effective IS NULL
-               AND v.date_sortie_prevue BETWEEN :du AND :au
-             ORDER BY v.date_sortie_prevue ASC',
-            ['du' => $du, 'au' => $au]
-        );
+        try {
+            $vehicules = Database::all(
+                Vehicle::SELECT_BASE . '
+                 WHERE v.date_sortie_effective IS NULL
+                   AND v.date_sortie_prevue BETWEEN :du AND :au
+                 ORDER BY v.date_sortie_prevue ASC',
+                ['du' => $du, 'au' => $au]
+            );
+        } catch (\PDOException $e) {
+            if (str_contains($e->getMessage(), 'marque_logo') || str_contains($e->getMessage(), 'logo')) {
+                $sqlFallback = str_replace('ma.logo AS marque_logo,', 'NULL AS marque_logo,', Vehicle::SELECT_BASE);
+                try {
+                    $vehicules = Database::all(
+                        $sqlFallback . '
+                         WHERE v.date_sortie_effective IS NULL
+                           AND v.date_sortie_prevue BETWEEN :du AND :au
+                         ORDER BY v.date_sortie_prevue ASC',
+                        ['du' => $du, 'au' => $au]
+                    );
+                } catch (\PDOException $e2) {
+                    Logger::error('Lecture des échéances impossible', $e2);
+                    $vehicules = [];
+                }
+            } else {
+                Logger::error('Lecture des échéances impossible', $e);
+                $vehicules = [];
+            }
+        }
 
         $groupes = [];
         foreach ($paliers as $p) {

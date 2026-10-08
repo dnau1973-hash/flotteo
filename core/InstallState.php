@@ -32,6 +32,18 @@ final class InstallState
         return dirname(__DIR__) . '/config/database.php';
     }
 
+    /**
+     * Emplacement du jeton GitHub.
+     *
+     * Chemin unique, également connu de `Services\GithubClient` : l'assistant
+     * écrit le fichier, le module de mise à jour le lit, et les deux ne
+     * peuvent pas diverger sur le nom du fichier ni sur sa clé.
+     */
+    public static function secretsPath(): string
+    {
+        return dirname(__DIR__) . '/config/secrets.php';
+    }
+
     /** Le verrou d'installation est-il présent et lisible ? */
     public static function verrouille(): bool
     {

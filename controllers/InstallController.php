@@ -96,6 +96,14 @@ final class InstallController extends Controller
             'nom'        => trim((string) Request::input('nom_d_utilisateur', '')),
             'email'      => trim((string) Request::input('admin_email', '')),
             'motdepasse' => (string) Request::input('admin_password', ''),
+            /*
+             * Jeton GitHub facultatif. Il n'est ni journalisé, ni renvoyé dans
+             * une réponse : `Installer::ecrireSecrets()` l'écrit directement sur
+             * disque et l'étape retournée ne mentionne que le fichier produit.
+             * Un champ laissé vide ne crée aucun fichier, ce qui laisse le
+             * contrôle des mises à jour en accès anonyme.
+             */
+            'github_token' => mb_substr(trim((string) Request::input('github_token', '')), 0, 255),
         ];
 
         if ((string) Request::input('admin_password_confirm', '') !== $admin['motdepasse']) {

@@ -13,23 +13,31 @@ use Core\Request;
  */
 final class Dictionary
 {
+    public const DOSSIER_LOGO = 'marques';
+    public const DOSSIER_PHOTO = 'modeles';
+    public const MIMES_LOGO = [
+        'image/jpeg' => 'jpg',
+        'image/png'  => 'png',
+        'image/webp' => 'webp',
+    ];
+
     /** Description normalisée des dictionnaires. */
     public const TYPES = [
         'marques' => [
-            'libelle'  => 'Marques',
-            'table'    => 'marques',
-            'champs'   => ['nom'],
-            'requis'   => ['nom'],
-            'etiquette' => ['nom' => 'Nom de la marque'],
-            'sources'  => ['marques' => ['id', 'nom']],
+            'libelle'   => 'Marques',
+            'table'     => 'marques',
+            'champs'    => ['logo', 'nom'],
+            'requis'    => ['nom'],
+            'etiquette' => ['nom' => 'Nom de la marque', 'logo' => 'Logo'],
+            'sources'   => [],
         ],
         'modeles' => [
-            'libelle'  => 'Modèles',
-            'table'    => 'modeles',
-            'champs'   => ['marque_id', 'nom'],
-            'requis'   => ['marque_id', 'nom'],
-            'etiquette' => ['marque_id' => 'Marque', 'nom' => 'Modèle'],
-            'sources'  => ['marque' => ['table' => 'marques', 'label' => 'nom']],
+            'libelle'   => 'Modèles',
+            'table'     => 'modeles',
+            'champs'    => ['marque_id', 'nom', 'photo'],
+            'requis'    => ['marque_id', 'nom'],
+            'etiquette' => ['marque_id' => 'Marque', 'nom' => 'Modèle', 'photo' => 'Photo'],
+            'sources'   => ['marque' => ['table' => 'marques', 'label' => 'nom']],
         ],
         'entites' => [
             'libelle'  => 'Entités propriétaires',
@@ -119,6 +127,9 @@ final class Dictionary
         }
         $data = [];
         foreach ($def['champs'] as $champ) {
+            if ($champ === 'logo' || $champ === 'photo') {
+                continue; // Les images téléversées sont traitées séparément
+            }
             $valeur = (string) Request::input($champ, '');
             if (str_ends_with($champ, '_id')) {
                 $data[$champ] = (int) $valeur;
@@ -167,12 +178,48 @@ final class Dictionary
     public static function delete(string $type, int $id): bool
     {
         $table = self::definition($type)['table'];
+        $fichierASupprimer = null;
+        $dossierSuppr = null;
+        if ($type === 'marques') {
+            try {
+                $fichierASupprimer = Database::scalar('SELECT logo FROM marques WHERE id = :id', ['id' => $id]);
+                $dossierSuppr = self::DOSSIER_LOGO;
+            } catch (\PDOException $e) { \Core\Logger::error($e->getMessage()); }
+        } elseif ($type === 'modeles') {
+            try {
+                $fichierASupprimer = Database::scalar('SELECT photo FROM modeles WHERE id = :id', ['id' => $id]);
+                $dossierSuppr = self::DOSSIER_PHOTO;
+            } catch (\PDOException $e) { \Core\Logger::error($e->getMessage()); }
+        }
+
         try {
-            return Database::delete($table, $id) > 0;
+            $supprime = Database::delete($table, $id) > 0;
+            if ($supprime && !empty($fichierASupprimer) && $dossierSuppr !== null) {
+                \Core\Upload::remove($dossierSuppr, (string) $fichierASupprimer);
+            }
+            return $supprime;
         } catch (\PDOException $e) {
             // Contrainte d'intégrité : entrée encore référencée par un véhicule ou un entretien.
             Logger::error("Suppression $table#$id refusée (référence existante)", $e);
             return false;
         }
+    }
+
+    /** URL publique du logo d'une marque, ou null. */
+    public static function urlLogo(?string $logo): ?string
+    {
+        if (empty($logo)) {
+            return null;
+        }
+        return \Core\Url::upload(self::DOSSIER_LOGO . '/' . $logo);
+    }
+
+    /** URL publique de la photo d'un modèle, ou null. */
+    public static function urlPhoto(?string $photo): ?string
+    {
+        if (empty($photo)) {
+            return null;
+        }
+        return \Core\Url::upload(self::DOSSIER_PHOTO . '/' . $photo);
     }
 }

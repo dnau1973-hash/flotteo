@@ -13,15 +13,22 @@ use Models\Vehicle;
  */
 final class ApiController extends Controller
 {
+    private function entiteFilter(): ?int
+    {
+        $id = Request::int('entite');
+        return ($id !== null && $id > 0) ? $id : null;
+    }
+
     public function kpis(): void
     {
         $this->guard();
+        $entiteId = $this->entiteFilter();
         $this->json([
             'success' => true,
             'data'    => [
-                'flotte'  => Vehicle::stats(),
-                'couts'   => Stat::kpiCosts(),
-                'incidents' => Stat::incidents()['par_type'],
+                'flotte'    => Vehicle::stats($entiteId),
+                'couts'     => Stat::kpiCosts($entiteId),
+                'incidents' => Stat::incidents(12, $entiteId)['par_type'],
             ],
         ]);
     }
@@ -30,7 +37,7 @@ final class ApiController extends Controller
     public function exitSchedule(): void
     {
         $this->guard();
-        $series = Stat::exitSchedule(12);
+        $series = Stat::exitSchedule(12, $this->entiteFilter());
         $this->json([
             'success' => true,
             'data'    => [
@@ -49,7 +56,7 @@ final class ApiController extends Controller
             $dimension = 'entite';
         }
         $filtre = (string) Request::input('filtre', '');
-        $data   = Stat::fleetSplit($dimension, $filtre);
+        $data   = Stat::fleetSplit($dimension, $filtre, $this->entiteFilter());
 
         $this->json([
             'success' => true,
@@ -65,7 +72,7 @@ final class ApiController extends Controller
     public function maintenanceCosts(): void
     {
         $this->guard();
-        $data = Stat::maintenanceCosts(12);
+        $data = Stat::maintenanceCosts(12, $this->entiteFilter());
         $series = array_map(
             static fn (array $s): array => ['name' => ucfirst($s['categorie']), 'data' => $s['data']],
             $data['series']
@@ -77,7 +84,7 @@ final class ApiController extends Controller
     public function tcoByModel(): void
     {
         $this->guard();
-        $data = Stat::tcoByModel(12);
+        $data = Stat::tcoByModel(12, $this->entiteFilter());
         $this->json([
             'success' => true,
             'data'    => [
@@ -92,7 +99,7 @@ final class ApiController extends Controller
     public function incidents(): void
     {
         $this->guard();
-        $data = Stat::incidents(12);
+        $data = Stat::incidents(12, $this->entiteFilter());
         $this->json([
             'success' => true,
             'data'    => [

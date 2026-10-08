@@ -24,7 +24,7 @@ Flotteo est une application web interne dédiée à la gestion, au pilotage opé
 ## 2. Architecture & Directives Techniques
 
 ### 2.1 Stack Technologique
-* **Serveur Web :** Apache avec module `mod_rewrite` activé.
+* **Serveur Web :** Apache avec module `mod_rewrite` activé. `mod_headers` et `mod_expires` sont recommandés : leurs blocs `<IfModule>` sont ignorés **silencieusement** s'ils manquent, et les en-têtes de sécurité déclarés dans `public/.htaccess` ne sont alors pas envoyés. `Core\Url::asset()` porte un jeton `?v=` valant l'horodatage de modification, si bien que le cache long des assets reste sûr même sans `mod_expires`.
 * **Backend :** PHP (8.1+ recommandé, PHP natif sans framework MVC tiers).
 * **Architecture Backend :** **VMVC Strict** (View - Model - View - Controller / Modèle-Vue-Contrôleur natif strict avec séparation étanche des couches d'affichage et de logique métier).
 * **Base de Données :** MySQL / MariaDB via extension **PDO**.
@@ -33,6 +33,7 @@ Flotteo est une application web interne dédiée à la gestion, au pilotage opé
   * **UI Framework :** Bootstrap 5 intégré avec le thème d'interface **Tabler.io**.
   * **Moteur Graphique :** **ApexCharts** (intégré nativement et stylisé pour Tabler.io), consommant des endpoints JSON légers fournis par les contrôleurs PHP.
   * **Modals & Dialogs :** Utilisation stricte des composants Modal de Tabler/Bootstrap pour toutes les interactions, messages de succès, d'erreur et confirmations de suppression.
+* **Scripts de page :** `Core\Controller::view()` rend **toujours la même instance** de `Core\View`, de sorte que `$this->view()->useScript(…)` — appel naturel depuis un contrôleur — alimente bien le pied de page. Deux usages figuraient dans le projet, `$this->useScript(…)` dans la vue et `$this->view()->useScript(…)` dans le contrôleur : seul le premier fonctionnait, la seconde forme perdant la déclaration sur une instance jetable, sans lever d'erreur. Tout script de page passe désormais par le contrôleur, forme unique et vérifiable.
 
 ### 2.2 Conventions de Codage & Règles d'Or
 1. **Typage strict PHP :** Présence obligatoire de `declare(strict_types=1);` en première ligne de chaque fichier PHP.
@@ -128,6 +129,7 @@ Pour éviter la saisie libre et standardiser les données, les administrateurs g
   * Saisie de l'événement (accrochage, panne, vandalisme, bris de glace).
   * Date, lieu et descriptif de l'incident.
   * Upload de pièces jointes (fichiers PDF de factures, constats amiables, photographies de dommages). Stockage sécurisé sur serveur avec nommage unique et contrôle des types MIME autorisés.
+  * **Vignettes :** les photographies (JPEG, PNG, WebP) s'affichent en vignette de 56 px dans la liste des pièces jointes, le clic ouvrant l'image dans un nouvel onglet. Un PDF, qui n'a pas d'aperçu possible, reçoit une icône. L'aperçu est servi par une action dédiée, distincte du téléchargement : une réponse d'attachement n'est jamais affichée par le navigateur. Une pièce jointe dont le fichier a disparu du stockage affiche une icône, jamais une image cassée.
 
 ### 4.6 Système d'Alertes et de Notification par Email
 * **Gestion de fin de détention / fin de contrat :**
@@ -217,7 +219,9 @@ Les quatre registres — **Guide utilisateur**, **Journal des modifications**, *
 * **Cycle de vie :** remplacer un avatar supprime l'ancien fichier ; supprimer un compte supprime le sien, le nom étant relu **avant** la suppression de la ligne — la valeur ne serait plus récupérable ensuite. Un fichier déposé puis non retenu est retiré du disque plutôt qu'orphelin.
 * **Incohérence levée à la volée :** l'interface masque l'option de suppression dès qu'un fichier est choisi. Un dépôt l'emporte systématiquement sur la case à cocher, côté serveur comme côté client : la logique est donc déterministe dans les deux langages, et la contradiction ne peut pas être exprimée par l'utilisateur.
 * **Aperçu :** `public/assets/js/utilisateurs.js` lit le fichier choisi par `FileReader` et l'affiche dans la modale avant enregistrement. Un format refusé est signalé dans l'aide sous le bouton — jamais par une alerte native — et l'aperçu revient à l'état précédent.
+* **Ouverture du sélecteur sans JavaScript :** le champ de fichier est masqué par `visually-hidden`, donc masqué au sens strict — 1 px, `clip` à zéro. Le déclenchement passe par une **étiquette `for`**, et non par un `input.click()` : une activation programmatique n'est pas garantie sur un élément masqué, et son échec est muet. La délégation d'activation à un champ associé est un mécanisme natif, qui reste annoncé aux lecteurs d'écran.
 * **L'avatar ne dépend pas du module Profil :** `Core\Database::update()` écrit toutes les clés fournies, `null` compris. Inclure `avatar` dans `User::update()` effacerait donc l'image à chaque enregistrement de profil ; son traitement est isolé dans `User::setAvatar()`.
+* **Évolution du schéma :** la colonne `avatar` est un ajout postérieur à la création de la base. `sql/schema.sql` décrit l'état cible d'une installation neuve ; les installations antérieures reçoivent les « ALTER » par `sql/migrations.sql`. L'étape figure au README. Son omission n'est pas visible au rechargement de la page — `User::all()` passe par un `SELECT *` qui ne nomme pas la colonne — mais fait échouer tout enregistrement, avec un message qui ne mentionne ni la colonne ni le fichier.
 
 ---
 ---

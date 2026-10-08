@@ -16,6 +16,8 @@ declare(strict_types=1);
  * @var string $section  Section affichée
  * @var array $valeurs   Valeurs courantes des paramètres
  * @var array $paliers   Paliers d'anticipation actifs, en jours
+ * @var array $sauvegardes  Contexte du module de sauvegarde (section dédiée)
+ * @var array $misesAJour  Contexte de la recherche de mise à jour (section dédiée)
  * @var string $base_url
  */
 
@@ -65,10 +67,12 @@ $meta = $sections[$section];
                 </div>
             </div>
 
-            <?php $this->partial('admin/_parametres_' . $section, [
-                'base_url' => $base_url,
-                'valeurs'  => $valeurs,
-                'paliers'  => $paliers,
+<?php $this->partial('admin/_parametres_' . $section, [
+    'base_url'   => $base_url,
+    'valeurs'    => $valeurs,
+    'paliers'    => $paliers,
+    'sauvegardes' => $sauvegardes ?? [],
+    'misesAJour' => $misesAJour ?? [],
 ]); ?>
         </div>
     </div>

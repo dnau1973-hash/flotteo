@@ -32,14 +32,17 @@ $cheminActif = Core\Router::currentPath();
 $titresChemins = [
     '/'                           => 'Tableau de bord',
     '/dashboard'                  => 'Tableau de bord',
+    '/agenda'                     => 'Agenda',
     '/vehicules'                  => 'Véhicules',
     '/entretien'                  => 'Révisions & entretien',
     '/incidents'                  => 'Incidents & sinistres',
     '/echeances'                  => 'Échéances',
+    '/kilometrage'                => 'Relevés kilométriques',
     '/admin'                      => 'Administration',
     '/admin/parametres'           => 'Paramètres système',
     '/admin/parametres/messagerie' => 'Paramètres — Messagerie',
     '/admin/parametres/alertes'   => 'Paramètres — Alertes',
+    '/admin/parametres/kilometrage' => 'Paramètres — Relevés kilométriques',
     '/admin/utilisateurs'         => 'Utilisateurs',
     '/admin/dictionnaires'        => 'Dictionnaires',
     '/docs/user_guide'            => 'Guide utilisateur',
@@ -63,10 +66,12 @@ $icone = static fn (string $nom, string $classes = ''): string => Core\Icon::sol
 /** Entrées de la barre. `role` filtre l'affichage selon les droits de l'utilisateur. */
 $modules = [
     ['cle' => 'dashboard', 'url' => '/dashboard',        'libelle' => 'Tableau de bord',      'icone' => 'gauge-high',           'role' => 'lecture'],
+    ['cle' => 'agenda',    'url' => '/agenda',            'libelle' => 'Agenda',               'icone' => 'clock',                 'role' => 'lecture'],
     ['cle' => 'vehicules',  'url' => '/vehicules',         'libelle' => 'Véhicules',           'icone' => 'car',                   'role' => 'lecture'],
+    ['cle' => 'kilometrage', 'url' => '/kilometrage',      'libelle' => 'Kilométrage',         'icone' => 'chart-line',           'role' => 'lecture'],
     ['cle' => 'entretien',  'url' => '/entretien',         'libelle' => 'Révisions',           'icone' => 'screwdriver-wrench',   'role' => 'lecture'],
     ['cle' => 'incidents',  'url' => '/incidents',         'libelle' => 'Incidents',           'icone' => 'triangle-exclamation', 'role' => 'lecture'],
-['cle' => 'echeances',  'url' => '/echeances',        'libelle' => 'Échéances',           'icone' => 'calendar-days',        'role' => 'lecture'],
+    ['cle' => 'echeances',  'url' => '/echeances',         'libelle' => 'Échéances',           'icone' => 'calendar-days',        'role' => 'lecture'],
     ['cle' => 'referentiels', 'url' => '/admin/dictionnaires', 'libelle' => 'Référentiels',    'icone' => 'list',                  'role' => 'admin'],
     ['cle' => 'parametres', 'url' => '/admin/parametres',  'libelle' => 'Paramètres',          'icone' => 'sliders',              'role' => 'admin'],
     ['cle' => 'utilisateurs', 'url' => '/admin/utilisateurs', 'libelle' => 'Utilisateurs',      'icone' => 'users',                'role' => 'admin'],
@@ -117,6 +122,10 @@ foreach ($modulesVisibles as $module) {
     <!-- Font Awesome : polices woff2 locales, aucun CDN. -->
     <link rel="stylesheet" href="<?= htmlspecialchars(Url::asset('css/fontawesome.css'), ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(Url::asset('css/flotteo.css'), ENT_QUOTES, 'UTF-8') ?>">
+
+    <?php foreach (($styles ?? []) as $feuille): ?>
+        <link rel="stylesheet" href="<?= htmlspecialchars(Url::asset($feuille), ENT_QUOTES, 'UTF-8') ?>">
+    <?php endforeach; ?>
 </head>
 <body>
 <div class="page">
@@ -188,9 +197,12 @@ foreach ($modulesVisibles as $module) {
                             <a href="#" class="nav-link d-flex lh-1 text-reset p-0 px-2"
                                data-bs-toggle="dropdown" data-bs-auto-close="outside"
                                aria-expanded="false" aria-label="Menu utilisateur">
-                                <span class="avatar avatar-sm bg-primary-lt me-2">
-                                    <?= htmlspecialchars(mb_strtoupper(mb_substr((string) $user['nom'], 0, 1)), ENT_QUOTES, 'UTF-8') ?>
-                                </span>
+            <?php $avatarUrl = \Models\User::avatarUrl($user['avatar'] ?? null); ?>
+            <?php $initiales  = mb_strtoupper(mb_substr((string) $user['nom'], 0, 1)); ?>
+            <span class="avatar avatar-sm bg-primary-lt me-2<?= $avatarUrl !== null ? ' bg-cover' : '' ?>"
+                  <?= $avatarUrl !== null ? 'style="background-image: url(\'' . htmlspecialchars($avatarUrl, ENT_QUOTES, 'UTF-8') . '\')"' : '' ?>>
+                <?= $avatarUrl === null ? $initiales : '' ?>
+            </span>
                                 <span class="d-none d-lg-block">
                                     <span class="d-block"><?= htmlspecialchars((string) $user['nom'], ENT_QUOTES, 'UTF-8') ?></span>
                                     <span class="d-block mt-1 small text-secondary"><?= htmlspecialchars((string) $user['email'], ENT_QUOTES, 'UTF-8') ?></span>

@@ -212,6 +212,24 @@ $admin = (string) ($admin ?? '');
                                 <small class="form-hint" id="aide-confirmation">&nbsp;</small>
                             </div>
                         </div>
+
+                        <hr class="my-3">
+
+                        <h3 class="install-sous-titre mb-2">Recherche de mise à jour (facultatif)</h3>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label" for="github_token">Jeton personnel GitHub</label>
+                                <input type="password" class="form-control font-monospace" id="github_token"
+                                       name="github_token" maxlength="255" autocomplete="off"
+                                       spellcheck="false" placeholder="ghp_…">
+                                <small class="form-hint">
+                                    Écrit dans <code>config/secrets.php</code>, hors base et hors archive de sauvegarde.
+                                    Laissez le champ vide pour rester en accès anonyme : la recherche fonctionne alors sur un
+                                    dépôt public, dans la limite de 60 requêtes par heure et par adresse IP.
+                                    Périmètre recommandé : lecture seule sur le dépôt des versions.
+                                </small>
+                            </div>
+                        </div>
                     </div>
                     <div class="card-footer install-actions">
                         <button type="button" class="btn btn-outline-secondary" id="retour-etape-1">

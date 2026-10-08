@@ -17,6 +17,18 @@ $formater = static function (string $champ, mixed $valeur) use ($def, $e): strin
     if ($champ === 'categorie') {
         return '<span class="badge bg-blue-lt">' . $e(ucfirst((string) $valeur)) . '</span>';
     }
+    if ($champ === 'logo') {
+        if (!empty($valeur)) {
+            return '<div class="d-flex align-items-center py-1"><img src="' . $e(\Models\Dictionary::urlLogo((string) $valeur)) . '" alt="Logo" class="rounded bg-white p-1 border shadow-xs" style="max-height: 56px; max-width: 120px; height: 50px; width: auto; object-fit: contain;"></div>';
+        }
+        return '<span class="text-muted small fst-italic">—</span>';
+    }
+    if ($champ === 'photo') {
+        if (!empty($valeur)) {
+            return '<div class="d-flex align-items-center py-1"><img src="' . $e(\Models\Dictionary::urlPhoto((string) $valeur)) . '" alt="Photo" class="rounded bg-white p-1 border shadow-xs" style="max-height: 56px; max-width: 120px; height: 50px; width: auto; object-fit: contain;"></div>';
+        }
+        return '<span class="text-muted small fst-italic">—</span>';
+    }
     return $e((string) $valeur);
 };
 ?>
@@ -103,7 +115,7 @@ $formater = static function (string $champ, mixed $valeur) use ($def, $e): strin
      aria-labelledby="titre-dictionnaire">
     <div class="modal-dialog" role="document">
         <form class="modal-content" method="post" action="<?= $e($base_url . '/admin/dictionnaires/' . $type . '/enregistrer') ?>"
-              id="formulaire-dictionnaire">
+              enctype="multipart/form-data" id="formulaire-dictionnaire">
             <?= Csrf::field() ?>
             <input type="hidden" name="id" value="0" id="dictionnaire-id">
 
@@ -113,7 +125,16 @@ $formater = static function (string $champ, mixed $valeur) use ($def, $e): strin
             </div>
 
             <div class="modal-body">
-                <?php foreach ($def['champs'] as $champ): ?>
+                <?php
+                // Les champs textuels et sélecteurs s'affichent en premier, les téléversements en bas de formulaire
+                $champsModal = $def['champs'];
+                usort($champsModal, static function (string $a, string $b): int {
+                    $poidsA = in_array($a, ['logo', 'photo'], true) ? 1 : 0;
+                    $poidsB = in_array($b, ['logo', 'photo'], true) ? 1 : 0;
+                    return $poidsA <=> $poidsB;
+                });
+                ?>
+                <?php foreach ($champsModal as $champ): ?>
                     <div class="mb-3">
                         <label class="form-label<?= in_array($champ, $def['requis'], true) ? ' required' : '' ?>"
                                for="d_<?= $e($champ) ?>"><?= $e($def['etiquette'][$champ] ?? $champ) ?></label>
@@ -132,6 +153,20 @@ $formater = static function (string $champ, mixed $valeur) use ($def, $e): strin
                                     <option value="<?= $e($c) ?>"><?= $e(ucfirst($c)) ?></option>
                                 <?php endforeach; ?>
                             </select>
+
+                        <?php elseif ($champ === 'logo' || $champ === 'photo'): ?>
+                            <div id="bloc-apercu-<?= $e($champ) ?>" class="mb-2 d-none">
+                                <div class="d-flex align-items-center gap-3 p-2 border rounded bg-light-lt">
+                                    <img src="" id="img-apercu-<?= $e($champ) ?>" alt="<?= $e($champ) ?>" class="rounded bg-white p-2 border shadow-xs"
+                                         style="max-height: 80px; max-width: 160px; height: 70px; object-fit: contain;">
+                                    <label class="form-check form-switch mb-0">
+                                        <input class="form-check-input" type="checkbox" name="<?= $e($champ) ?>_supprimer" id="d_<?= $e($champ) ?>_supprimer" value="1">
+                                        <span class="form-check-label text-danger small">Supprimer <?= $champ === 'logo' ? 'le logo' : 'la photo' ?> actuel<?= $champ === 'logo' ? '' : 'le' ?></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <input type="file" class="form-control" id="d_<?= $e($champ) ?>" name="<?= $e($champ) ?>" accept="image/png,image/jpeg,image/webp">
+                            <div class="form-text">Formats acceptés : PNG, JPG, WebP (8 Mo maximum).</div>
 
                         <?php else: ?>
                             <input type="<?= $champ === 'contact_email' ? 'email' : 'text' ?>" class="form-control"
@@ -180,15 +215,62 @@ $formater = static function (string $champ, mixed $valeur) use ($def, $e): strin
             if (!edition) {
                 document.getElementById('dictionnaire-id').value = '0';
                 document.getElementById('titre-dictionnaire').textContent = titreCreation;
+                ['logo', 'photo'].forEach(function (champ) {
+                    var bloc = document.getElementById('bloc-apercu-' + champ);
+                    if (bloc) { bloc.classList.add('d-none'); }
+                    var inputFichier = document.getElementById('d_' + champ);
+                    if (inputFichier) { inputFichier.value = ''; }
+                    var checkSuppr = document.getElementById('d_' + champ + '_supprimer');
+                    if (checkSuppr) { checkSuppr.checked = false; }
+                });
                 return;
             }
 
             document.getElementById('dictionnaire-id').value = declencheur.getAttribute('data-id');
             document.getElementById('titre-dictionnaire').textContent = titreEdition;
             <?php foreach ($def['champs'] as $champ): ?>
-                var champ_<?= $e($champ) ?> = document.getElementById('d_<?= $e($champ) ?>');
-                if (champ_<?= $e($champ) ?>) { champ_<?= $e($champ) ?>.value = declencheur.getAttribute('data-<?= $e($champ) ?>'); }
+                <?php if ($champ === 'logo' || $champ === 'photo'): ?>
+                    var valFichier = declencheur.getAttribute('data-<?= $e($champ) ?>');
+                    var blocApercu = document.getElementById('bloc-apercu-<?= $e($champ) ?>');
+                    var imgApercu = document.getElementById('img-apercu-<?= $e($champ) ?>');
+                    var checkSuppr = document.getElementById('d_<?= $e($champ) ?>_supprimer');
+                    var inputFichier = document.getElementById('d_<?= $e($champ) ?>');
+                    if (inputFichier) { inputFichier.value = ''; }
+                    if (checkSuppr) { checkSuppr.checked = false; }
+                    if (valFichier && valFichier.trim() !== '' && blocApercu && imgApercu) {
+                        var sousDossier = '<?= $champ === "logo" ? "marques" : "modeles" ?>';
+                        imgApercu.src = '<?= $e($base_url) ?>/uploads/' + sousDossier + '/' + encodeURIComponent(valFichier);
+                        blocApercu.classList.remove('d-none');
+                    } else if (blocApercu) {
+                        blocApercu.classList.add('d-none');
+                    }
+                <?php else: ?>
+                    var champ_<?= $e($champ) ?> = document.getElementById('d_<?= $e($champ) ?>');
+                    if (champ_<?= $e($champ) ?>) { champ_<?= $e($champ) ?>.value = declencheur.getAttribute('data-<?= $e($champ) ?>'); }
+                <?php endif; ?>
             <?php endforeach; ?>
+        });
+
+        ['logo', 'photo'].forEach(function (champ) {
+            var inputFichier = document.getElementById('d_' + champ);
+            if (inputFichier) {
+                inputFichier.addEventListener('change', function () {
+                    var checkSuppr = document.getElementById('d_' + champ + '_supprimer');
+                    if (checkSuppr) { checkSuppr.checked = false; }
+                    if (this.files && this.files[0]) {
+                        var reader = new FileReader();
+                        reader.onload = function (e) {
+                            var imgApercu = document.getElementById('img-apercu-' + champ);
+                            var blocApercu = document.getElementById('bloc-apercu-' + champ);
+                            if (imgApercu && blocApercu) {
+                                imgApercu.src = e.target.result;
+                                blocApercu.classList.remove('d-none');
+                            }
+                        };
+                        reader.readAsDataURL(this.files[0]);
+                    }
+                });
+            }
         });
     });
 </script>

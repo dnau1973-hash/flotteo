@@ -14,6 +14,9 @@ final class View
     /** Scripts additionnels injectés en fin de page. */
     private array $scripts = [];
 
+    /** Feuilles de style additionnelles injectées dans l'en-tête. */
+    private array $styles = [];
+
     public function __construct(string $root = '')
     {
         $this->root = $root !== '' ? $root : dirname(__DIR__) . '/views';
@@ -23,6 +26,19 @@ final class View
     public function useScript(string $fichier): void
     {
         $this->scripts[$fichier] = $fichier;
+    }
+
+    /**
+     * Déclare une feuille de style supplémentaire pour la page courante.
+     *
+     * Le chemin est donné relatif à `public/assets`, comme pour `useScript()`.
+     * Elle est émise dans l'en-tête et non dans le corps : une feuille déclarée
+     * au milieu du document fonctionne, mais elle applique ses règles après
+     * l'affichage initial et retarde le premier rendu.
+     */
+    public function useStyle(string $fichier): void
+    {
+        $this->styles[$fichier] = $fichier;
     }
 
     public function share(array $data): self
@@ -54,6 +70,7 @@ final class View
             return;
         }
         $scripts = $this->scripts;
+        $styles = $this->styles;
         require $this->root . '/layout/header.php';
         echo $contenu;
         require $this->root . '/layout/footer.php';

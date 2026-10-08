@@ -194,9 +194,18 @@ $teinte = static fn (string $role): array => $teintes[$role] ?? $teintes['lectur
                            class="visually-hidden" accept="image/jpeg,image/png,image/webp"
                            data-apercu="#u_avatar_apercu">
                     <div class="mt-2">
-                        <button type="button" class="btn btn-sm" id="u_avatar_choisir">
+                        <!--
+                            Le champ de fichier est réellement masqué (`visually-hidden`,
+                            1 px clippé). Appeler `input.click()` depuis un bouton ne
+                            repose alors que sur une activation programmatique : selon le
+                            navigateur et la version, le sélecteur ne s'ouvre pas, sans
+                            erreur. Une étiquette `for` délègue l'activation au champ de
+                            façon native — le clic ouvre le sélecteur sans JavaScript,
+                            et l'association reste annoncée aux lecteurs d'écran.
+                        -->
+                        <label for="u_avatar_fichier" id="u_avatar_choisir" class="btn btn-sm btn-outline-secondary">
                             <?= $icone('user', 'me-1') ?>Choisir une image
-                        </button>
+                        </label>
                     </div>
                     <div class="form-hint mt-1" id="u_avatar_aide">
                         JPG, PNG ou WEBP, 8 Mo maximum. Sans image, les initiales du nom sont affichées.

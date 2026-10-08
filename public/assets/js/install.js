@@ -111,7 +111,7 @@
     // ------------------------------------------------------ Étape 1 : test AJAX
 
     if (boutonTester) {
-        boutonTester.addEventListener('click', function () {
+        boutonTester.addEventListener('click', async function () {
             if (!formulaireBdd.checkValidity()) {
                 formulaireBdd.reportValidity();
                 return;

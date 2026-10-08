@@ -224,7 +224,7 @@ final class Injecteur
     {
         $this->pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
 
-        foreach (['incidents_fichiers', 'incidents', 'maintenances', 'vehicules', 'parametres'] as $table) {
+        foreach (['incidents_fichiers', 'sauvegardes', 'incidents', 'maintenances', 'vehicules', 'parametres'] as $table) {
             $this->pdo->exec('TRUNCATE TABLE ' . $table);
         }
 

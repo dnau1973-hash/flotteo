@@ -8,9 +8,95 @@
     --flotteo-ok: #2fb344;
     --flotteo-warning: #f76707;
     --flotteo-danger: #d63939;
+
+    /* Gouttière des entrées de la barre supérieure. Tabler réserve 0,75 rem de
+       part et d'autre de chaque entrée, soit 24 px par lien ; neuf entrées
+       consomment alors 216 px rien qu'en gouttière. La barre étant en
+       `navbar-expand-xl`, elle se replie en menu « burger » sous 1 200 px et,
+       juste au-dessus, les neuf entrées débordaient de 60 px. */
+    --tblr-navbar-nav-link-padding-x-menu: 0.375rem;
+
+    /* Le z-index par défaut du datepicker est 1000, alors que les modales Tabler
+       sont à z-index: 1055. On le positionne au-dessus des modales (1060). */
+    --tblr-datepicker-zindex: 1060;
 }
 
 body { font-size: 0.875rem; }
+
+/* =============================================================================
+   Police de titraille — auto-hébergée, aucun appel réseau externe.
+   Déclaration générale : utilisée par la barre de menu comme par l'assistant
+   d'installation.
+   ========================================================================== */
+
+@font-face {
+    font-family: 'Dela Gothic One';
+    src: url('../fonts/dela-gothic-one-latin-400.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* Marque de l'application, à gauche de la barre de menu.
+   `font-weight: 400` est indispensable : Tabler impose `bold` sur
+   `.navbar-brand`, et le navigateur applique un **gras synthétique** aux polices
+   qui n'ont qu'un seul poids — Dela Gothic One n'en propose qu'un. Sur une
+   police de titraille large et arrondie, ce faux gras épaissit les contreformes
+   et alourdit le rendu.
+   Le repli reste indiqué pour le cas où le fichier woff2 ne se charge pas : le
+   texte ne saute pas d'une ligne à l'autre. */
+.navbar-brand-text {
+    font-family: 'Dela Gothic One', 'Trebuchet MS', system-ui, sans-serif;
+    font-weight: 400;
+    letter-spacing: 0.01em;
+}
+
+/* Agenda — FullCalendar
+   Les noms de classes internes de FullCalendar sont hachés et changent d'une
+   version à l'autre : seuls les sélecteurs publics et nos propres classes
+   `flotteo-*` — posées par `AgendaService` via `className` — sont utilisables ici.
+   L'aplat de chaque événement vient de `AgendaService` également, qui n'a pas
+   accès à cette feuille ; seule la couleur du texte est posée ici. */
+.agenda-pastille {
+    display: inline-block;
+    width: .55rem;
+    height: .55rem;
+    margin-right: .35rem;
+    border-radius: 50%;
+    vertical-align: .05em;
+}
+.agenda-filtre[aria-pressed='false'] { opacity: .55; }
+.agenda-filtre[aria-pressed='false'] .agenda-pastille { background-color: currentColor !important; }
+
+/* FullCalendar rend un événement en lien ; on neutralise le soulignement de
+   Tabler et on impose un texte blanc : les aplats par famille sont foncés. */
+.flotteo-evenement,
+.flotteo-evenement a {
+    text-decoration: none;
+    cursor: pointer;
+}
+.flotteo-evenement { color: #fff !important; }
+.flotteo-evenement a { color: inherit; }
+.flotteo-evenement:hover { filter: brightness(1.08); }
+.flotteo-evenement:focus-visible {
+    outline: 2px solid var(--flotteo-accent);
+    outline-offset: 1px;
+}
+
+/* Carte du calendrier : le calendrier occupe toute la largeur, la colonne de
+   droite de la page reste vide sur les écrans larges. */
+#agenda-calendrier { min-height: 420px; }
+
+/* Barre supérieure — gouttière des entrées de menu.
+   Tabler réserve 0,75 rem de part et d'autre de chaque entrée, soit 24 px par
+   lien : neuf entrées consomment alors 216 px rien qu'en gouttière. La barre
+   étant en `navbar-expand-xl`, elle se replie en menu « burger » sous 1 200 px ;
+   juste au-dessus, les neuf entrées débordaient de 60 px. On resserre donc la
+   gouttière, ce qui laisse au lien son espacement vertical et son air. */
+.barre-superieure .navbar-nav .nav-link {
+    padding-left: var(--tblr-navbar-nav-link-padding-x-menu);
+    padding-right: var(--tblr-navbar-nav-link-padding-x-menu);
+}
 
 /* Icônes SVG Tabler en ligne */
 .icon { display: inline-block; vertical-align: -0.15em; }
@@ -31,6 +117,7 @@ body { font-size: 0.875rem; }
 .chart-cercle { min-height: 260px; }
 .chart-bars { min-height: 280px; }
 .chart-haut { min-height: 340px; }
+.chart-incidents { min-height: 400px; }
 .apexcharts-tooltip { font-size: 0.78rem !important; }
 .apexcharts-canvas { font-family: inherit !important; }
 
@@ -38,6 +125,20 @@ body { font-size: 0.875rem; }
 .table td, .table th { vertical-align: middle; }
 .cell-actions { white-space: nowrap; }
 .badge-statut { text-transform: uppercase; letter-spacing: 0.03em; font-size: 0.68rem; }
+
+/* Fiche véhicule : les deux cartes de la colonne de droite se partagent la
+   hauteur disponible à parts égales. `flex-basis: 0` les rend indépendantes de
+   leur nombre de lignes, ce que `flex-fill` (`flex: 1 1 auto`) ne fait pas —
+   la carte la plus longue y resterait plus haute que l'autre.
+   `min-height` n'est volontairement pas forcé à 0 : sa valeur par défaut
+   (`auto`) empêche une carte d'être comprimée sous son contenu, donc aucun
+   tableau n'est tronqué quand la colonne est plus basse que les deux cartes. */
+.carte-partagee { flex: 1 1 0; }
+
+/* Colonne d'immatriculation : `w-1` la ramène à 1 % pour laisser les autres
+   colonnes absorber l'espace, mais sans plancher l'immat se coupe. Le min-width
+   garantit la place d'un numéro complet, `nowrap` interdit qu'il se rompe. */
+.col-immat { width: 1%; min-width: 7.5rem; white-space: nowrap; }
 
 /* Barre de progression d'immobilisation */
 .jauge { height: 0.4rem; border-radius: 1rem; background: #e6e7e9; overflow: hidden; }
@@ -60,16 +161,7 @@ body { font-size: 0.875rem; }
 
 /* =============================================================================
    Assistant d'installation (/install)
-   Police de titraille auto-hébergée : aucun appel réseau externe.
    ========================================================================== */
-
-@font-face {
-    font-family: 'Dela Gothic One';
-    src: url('../fonts/dela-gothic-one-latin-400.woff2') format('woff2');
-    font-weight: 400;
-    font-style: normal;
-    font-display: swap;
-}
 
 .install-body {
     min-height: 100vh;
@@ -399,6 +491,46 @@ body { font-size: 0.875rem; }
 
 .markdown hr { margin: 1.5rem 0; }
 
+/* Grille des tableaux de registre (Fonctionnalité / État / Détail).
+   `table-layout: fixed` s'appuie sur les largeurs déclarées en pourcentage,
+   que le navigateur applique à l'identique d'un bloc à l'autre : les colonnes
+   s'alignent exactement d'une section à la suivante. En répartition
+   automatique, chaque tableau calculait ses largeurs selon son propre contenu
+   et la colonne « Fonctionnalité » variait de 173 à 340 px selon la section.
+   Les trois pourcentages somment à 100 % : aucune colonne ne dépend donc du
+   contenu, et le tableau garde la largeur du conteneur `.table-responsive`. */
+.markdown .markdown-table--grille {
+    table-layout: fixed;
+}
+
+.markdown .markdown-table--grille > thead > tr > th:nth-child(1) { width: 26%; }
+.markdown .markdown-table--grille > thead > tr > th:nth-child(2) { width: 9%; }
+.markdown .markdown-table--grille > thead > tr > th:nth-child(3) { width: 65%; }
+
+/* En largeur fixe, un fragment indivisible (chemin, identifiant) ne peut plus
+   élargir sa colonne : il se coupe sur un mot au lieu de déborder. */
+.markdown .markdown-table--grille td { overflow-wrap: break-word; }
+
+/* Le `nowrap` posé plus haut sur les en-têtes ne tient plus en largeur fixe :
+   sous 500 px de fenêtre, « Fonctionnalité » (133 px) débordait d'une colonne
+   de 102 px. Le repli revient au navigateur, qui ne coupe que si la place
+   manque — donc un seul mot reste sur une ligne à partir de 700 px. */
+.markdown .markdown-table--grille thead th { white-space: normal; }
+
+/* Marqueurs d'état des registres, rendus en icônes Font Awesome par
+   Core\Markdown (voir MARQUEURS). Le libellé reste lisible par les lecteurs
+   d'écran via `.visually-hidden` ; la couleur n'est qu'un renfort, jamais le
+   seul signal — l'icône elle-même diffère d'un état à l'autre. */
+.markdown .etat {
+    font-size: 1.05em;
+    vertical-align: -0.1em;
+}
+
+.markdown .etat--actif           { color: var(--flotteo-ok); }
+.markdown .etat--planifie        { color: var(--flotteo-warning); }
+.markdown .etat--reserve         { color: var(--flotteo-warning); }
+.markdown .etat--hors-perimetre  { color: var(--flotteo-danger); }
+
 /* Les tableaux produits par le moteur portent déjà .table-responsive ; on borne
    la hauteur des en-têtes plutôt que de laisser une cellule unique s'étirer. */
 .markdown thead th {
@@ -408,3 +540,149 @@ body { font-size: 0.875rem; }
 
 .markdown a { text-decoration: none; }
 .markdown a:hover { text-decoration: underline; }
+
+/* Le sélecteur d'avatar est un champ de fichier natif, masqué : la vue le
+   remplace par une étiquette, seule à porter l'apparence d'un bouton. Tabler ne
+   pose `cursor: pointer` que sur les éléments natifs cliquables, l'étiquette
+   restait donc en `default` — elle ne semblait pas cliquable. */
+label.btn,
+label.btn:disabled {
+    cursor: pointer;
+}
+
+/* Colonne d'immatriculation des tableaux de bord.
+   Dans une carte de demi-largeur, l'immatriculation (« BW-239-44 ») était la
+   seule cellule dont la largeur minimale pouvait descendre sous son contenu :
+   l'algorithme de répartition des colonnes des tableaux Tabler ne garantit
+   qu'une part de largeur minimale, il laisse le reste aux autres colonnes. La
+   valeur se coupait alors en deux lignes (« BW-239-» / « 44 ») et la hauteur de
+   la ligne passait de 45 à 65 px, ce qui désalignait les lignes entre les deux
+   cartes voisines. `white-space: nowrap` relève la largeur minimale de la
+   colonne à celle de son contenu le plus long : elle ne se coupe plus, et les
+   colonnes voisines — marque, modèle, loueur — récupèrent la différence, leurs
+   contenus étant eux-mêmes élastiques. */
+.col-immat {
+    white-space: nowrap;
+}
+
+/* Vignettes des pièces jointes d'incident.
+   Un constat amicable ou une photographie se reconnaît d'un coup d'œil : sans
+   vignette, il faut ouvrir chaque fichier pour savoir de quoi il s'agit. Le
+   cadre est de dimensions fixes (56 px) pour que la liste reste alignée quel
+   que soit le format de l'image — un portrait ne doit pas agrandir la ligne,
+   un paysage ne doit pas la rétrécir. `object-fit: cover` recadre le débord :
+   c'est la silhouette qui est utile, pas le cadrage complet. */
+.vignette-fichier {
+    display: flex;
+    flex: 0 0 56px;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    overflow: hidden;
+    border: 1px solid var(--tblr-border-color, rgba(0, 0, 0, .1));
+    border-radius: var(--tblr-border-radius, 4px);
+    background: var(--tblr-bg-surface-secondary, #f8fafc);
+    color: var(--tblr-secondary, inherit);
+}
+
+.vignette-fichier img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.vignette-fichier-icone .icon,
+.vignette-fichier-icone i {
+    font-size: 1.5rem;
+}
+
+/* Visionneuse de document (modale des pièces jointes d'entretien) */
+/* Le conteneur est plus haut que la modale elle-même : `iframe` occupant 100 %
+   d'une boîte de hauteur nulle ne s'affiche pas. La hauteur est donc donnée en
+   `vh`, calculée pour que la modale reste entièrement visible, en-tête et
+   pied compris, jusqu'à 1080 px de haut. */
+.visionneuse {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: min(72vh, 780px);
+    overflow: auto;
+    background: var(--tblr-bg-surface-secondary, #f1f5f9);
+}
+
+/* Une photographie doit tenir dans la boîte sans être rognée : `max-width` et
+   `max-height` valent 100 %, et `object-fit: contain` préserve le cadrage. */
+.visionneuse-image {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+/* La visionneuse PDF du navigateur occupe toute la surface : c'est elle qui
+   fournit pagination, zoom et recherche, que l'application ne réimplémente
+   pas. `border: 0` supprime la bordure par défaut de l'élément. */
+.visionneuse-pdf {
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+
+/* Le lien vers un document se reconnaît au pointeur : il ouvre une visionneuse,
+   pas une nouvelle page. */
+a.document {
+    cursor: pointer;
+}
+
+a.document:hover {
+    text-decoration: underline;
+}
+
+/* Bouton de retour en haut de page */
+/* Masqué par défaut : la classe `visible` est posée par app.js dès que la page
+   est descendue. `visibility: hidden` le retire aussi du parcours de tabulation. */
+.retour-haut {
+    position: fixed;
+    right: 1.5rem;
+    bottom: 1.5rem;
+    z-index: 1030;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    border-radius: 50%;
+    box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .18);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .2s ease, transform .2s ease, visibility .2s;
+}
+
+.retour-haut.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.retour-haut:hover {
+    transform: translateY(-2px);
+}
+
+.retour-haut:focus-visible {
+    outline: 2px solid var(--flotteo-accent);
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .retour-haut { transition: none; }
+    .retour-haut:hover { transform: none; }
+}
+
+/* =============================================================================
+   Datepicker Tabler — positionnement et z-index au-dessus des modales (1055)
+   ========================================================================== */
+[data-vc="calendar"][data-vc-input],
+.vc-calendar[data-vc-input] {
+    z-index: 1060 !important;
+}
+

@@ -89,7 +89,7 @@
         var bouton = document.getElementById('bouton-confirmation');
         if (!element || !bouton) { return; }
 
-        bouton.addEventListener('click', function () {
+        bouton.addEventListener('click', async function () {
             if (bouton.dataset.confirmee === '1') {
                 return;
             }
@@ -125,7 +125,7 @@
     /** Suppression d'un enregistrement via un mini-formulaire POST. */
     function initBoutonsSuppression() {
         document.querySelectorAll('[data-supprimer]').forEach(function (bouton) {
-            bouton.addEventListener('click', function () {
+            bouton.addEventListener('click', async function () {
                 var formulaire = document.getElementById(bouton.getAttribute('data-supprimer'));
                 if (!formulaire) { return; }
                 formulaire.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
@@ -134,19 +134,23 @@
     }
 
     // ------------------------------------------------------------ Utilitaires
-    function post(url, donnees) {
-        var corps = new FormData();
-        Object.keys(donnees || {}).forEach(function (cle) { corps.append(cle, donnees[cle]); });
+    async function post(url, donnees) {
+        const corps = new FormData();
+        Object.keys(donnees || {}).forEach(cle => corps.append(cle, donnees[cle]));
         corps.append('_token', TOKEN);
 
-        return fetch(base + url, {
-            method: 'POST',
-            body: corps,
-            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
-            credentials: 'same-origin'
-        }).then(function (reponse) { return reponse.json().then(function (json) {
+        try {
+            const reponse = await fetch(base + url, {
+                method: 'POST',
+                body: corps,
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                credentials: 'same-origin'
+            });
+            const json = await reponse.json();
             return { ok: reponse.ok, json: json };
-        }); });
+        } catch (error) {
+            return { ok: false, json: { message: "Erreur de connexion" } };
+        }
     }
     window.flotteoPost = post;
 
@@ -159,22 +163,25 @@
     window.flotteoGet = get;
 
     /** Remplit un <select> à partir d'un endpoint JSON. */
-    function remplirSelect(selecteur, url, valeurVide) {
-        var select = document.querySelector(selecteur);
-        if (!select) { return Promise.resolve(); }
-        var valeurInitiale = select.dataset.valeur || '';
+    async function remplirSelect(selecteur, url, valeurVide) {
+        const select = document.querySelector(selecteur);
+        if (!select) { return; }
+        const valeurInitiale = select.dataset.valeur || '';
 
-        return get(url).then(function (payload) {
-            var donnees = (payload && payload.data) || [];
+        try {
+            const payload = await get(url);
+            const donnees = (payload && payload.data) || [];
             select.innerHTML = '';
             if (valeurVide) {
                 select.appendChild(new Option(valeurVide, ''));
             }
-            donnees.forEach(function (item) {
+            donnees.forEach(item => {
                 select.appendChild(new Option(item.libelle, item.id));
             });
             if (valeurInitiale) { select.value = valeurInitiale; }
-        });
+        } catch (error) {
+            // Ignorer silencieusement
+        }
     }
     window.flotteoRemplirSelect = remplirSelect;
 
@@ -194,24 +201,59 @@
      */
     function initBoutonsCopie() {
         document.querySelectorAll('[data-copier]').forEach(function (bouton) {
-            bouton.addEventListener('click', function () {
+            bouton.addEventListener('click', async function () {
                 var cible = document.getElementById(bouton.getAttribute('data-copier'));
                 if (!cible) { return; }
                 var texte = cible.value || cible.textContent || '';
 
-                var promesse = navigator.clipboard
-                    ? navigator.clipboard.writeText(texte)
-                    : Promise.reject();
-
-                promesse
-                    .then(function () { toast('Commande copiée dans le presse-papiers.', 'success'); })
-                    .catch(function () {
-                        cible.focus();
-                        cible.select();
-                        toast('Copie impossible : sélectionnez le texte et copiez-le.', 'warning');
-                    });
+                try {
+                    if (!navigator.clipboard) throw new Error();
+                    await navigator.clipboard.writeText(texte);
+                    toast('Commande copiée dans le presse-papiers.', 'success');
+                } catch (e) {
+                    cible.focus();
+                    cible.select();
+                    toast('Copie impossible : sélectionnez le texte et copiez-le.', 'warning');
+                }
             });
         });
+    }
+
+    // ------------------------------------------------- Retour en haut de page
+    /**
+     * Affiche le bouton de retour en haut une fois la page descendue et
+     * ramène le défilement à zéro au clic.
+     *
+     * Le bouton est masqué en CSS (`visibility`), ce qui le sort aussi du ordre
+     * de tabulation : il ne reste atteignable au clavier que lorsqu'il est
+     * réellement visible.
+     */
+    function initBoutonHautPage() {
+        var bouton = document.getElementById('flotteo-retour-haut');
+        if (!bouton) { return; }
+
+        var sansAnimation = window.matchMedia
+            && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        function defiler() {
+            if (sansAnimation) {
+                window.scrollTo(0, 0);
+                return;
+            }
+            try {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } catch (erreur) {
+                window.scrollTo(0, 0);
+            }
+        }
+
+        function basculer() {
+            bouton.classList.toggle('visible', (window.scrollY || window.pageYOffset || 0) > 400);
+        }
+
+        bouton.addEventListener('click', defiler);
+        window.addEventListener('scroll', basculer, { passive: true });
+        basculer();
     }
 
     // ---------------------------------------------------------------- Init
@@ -220,6 +262,7 @@
         initFormulairesConfirmes();
         initBoutonsSuppression();
         initBoutonsCopie();
+        initBoutonHautPage();
         hydraterFlash();
     });
 })();

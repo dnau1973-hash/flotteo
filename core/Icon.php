@@ -28,16 +28,19 @@ final class Icon
      * Cette liste doit rester synchronisée avec public/assets/css/fontawesome.css :
      * c'est la seule garantie qu'une icône demandée sera réellement rendue.
      */
-    private const GLYPHES = [
-        'car', 'gauge-high', 'screwdriver-wrench', 'triangle-exclamation', 'gear',
-        'users', 'user', 'right-from-bracket', 'bars', 'bell', 'book', 'file-lines',
-        'plus', 'trash-can', 'pen', 'magnifying-glass', 'check', 'xmark', 'envelope',
-        'eye', 'wrench', 'calendar-days', 'chart-line', 'circle-info', 'lock',
-        'chevron-down', 'list', 'gears', 'sliders', 'shield-halved', 'database',
-        'file-pdf', 'boxes', 'tag', 'arrow-right-arrow-left',
-        // Familles « brands ».
-        'github', 'slack',
-    ];
+     private const GLYPHES = [
+         'car', 'gauge-high', 'screwdriver-wrench', 'triangle-exclamation', 'gear',
+         'users', 'user', 'right-from-bracket', 'bars', 'bell', 'book', 'file-lines',
+         'plus', 'trash-can', 'pen', 'magnifying-glass', 'check', 'xmark', 'envelope',
+         'eye', 'wrench', 'calendar-days', 'chart-line', 'circle-info', 'lock',
+         'chevron-down', 'list', 'gears', 'sliders', 'shield-halved', 'database',
+         'file-pdf', 'boxes', 'tag', 'arrow-right-arrow-left',
+         // Module de sauvegarde : conditionnement, partage réseau, disque, retour en haut.
+         'box-archive', 'network-wired', 'folder-open', 'download', 'server',
+         'circle-check', 'clock', 'arrow-up',
+         // Familles « brands ».
+         'github', 'slack',
+     ];
 
     /** Icône pleine (`fa-solid`). */
     public static function solid(string $nom, string $classes = ''): string

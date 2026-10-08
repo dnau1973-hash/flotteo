@@ -59,6 +59,17 @@ final class IncidentController extends Controller
     /** Création ou mise à jour d'un incident (POST). */
     public function save(): void
     {
+        // Avant `guardPost()` : au-delà de `post_max_size`, PHP vide `$_POST` et
+        // `$_FILES` sans erreur, et le contrôle CSRF échoue en premier sur un
+        // jeton pourtant envoyé.
+        if (Request::corpsTronque()) {
+            $limite = (string) Request::postMaxSize();
+            Logger::error("Formulaire incident tronque par post_max_size ($limite)");
+            $this->repondreErreurs([
+                sprintf("Fichier refusé : la taille de l'envoi dépasse la limite du serveur (%s).", $limite),
+            ], Request::int('id'));
+        }
+
         $this->guardPost();
         $id      = Request::int('id');
         $payload = Incident::buildPayload();
@@ -77,7 +88,7 @@ final class IncidentController extends Controller
                 Flash::add('success', 'L\'incident a été enregistré.');
             }
         } catch (\PDOException $e) {
-            Core\Logger::error('Enregistrement incident impossible', $e);
+            Logger::error('Enregistrement incident impossible', $e);
             $this->repondreErreurs(['Enregistrement impossible : vérifiez les données saisies.'], $id);
         }
 
@@ -98,7 +109,7 @@ final class IncidentController extends Controller
             Incident::delete($id);
             Flash::add('success', 'L\'incident et ses pièces jointes ont été supprimés.');
         } catch (\PDOException $e) {
-            Core\Logger::error("Suppression incident #$id impossible", $e);
+            Logger::error("Suppression incident #$id impossible", $e);
             Flash::add('danger', 'Suppression impossible.');
         }
 
@@ -137,7 +148,7 @@ final class IncidentController extends Controller
             );
             Flash::add('success', 'Pièce jointe ajoutée au dossier.');
         } catch (\PDOException $e) {
-            Core\Logger::error('Enregistrement pièce jointe impossible', $e);
+            Logger::error('Enregistrement pièce jointe impossible', $e);
             Upload::remove(Incident::DOSSIER, (string) $resultat['chemin']);
             Flash::add('danger', 'La pièce jointe n\'a pas pu être enregistrée.');
         }
@@ -170,6 +181,75 @@ final class IncidentController extends Controller
         exit;
     }
 
+    /**
+     * Aperçu d'une pièce jointe image, servi dans la page.
+     *
+     * Séparé de `download()`, qui force `Content-Disposition: attachment` : le
+     * navigateur y enregistrerait le fichier au lieu de l'afficher, et une
+     * vignette ne s'affiche jamais depuis une réponse d'attachement.
+     *
+     * Trois verrous, tous nécessaires :
+     * - `Incident::MIMES_VIGNETTE` écarte les PDF, seul type non-image autorisé au
+     *   téléversement ; le contrôle est refait sur le fichier réel, la ligne en
+     *   base n'étant qu'une déclaration ;
+     * - `nosniff` empêche le navigateur de sniffer un contenu qu'il ne
+     *   reconnaîtrait pas ;
+     * - `Content-Security-Policy: default-src 'none'` neutralise toute ressource
+     *   externe : une image ne charge ni script ni feuille de style, et la page
+     *   qui l'affiche n'est pas exposée si un octet du fichier était hostile.
+     */
+    public function preview(): void
+    {
+        $this->guard();
+        $fichier = Incident::findFile(Request::int('id'));
+        if ($fichier === null) {
+            $this->refuserApercu();
+        }
+
+        if (!Incident::estImage($fichier)) {
+            Flash::add('warning', 'Aperçu disponible uniquement pour les images.');
+            $this->redirect('/incidents/voir?id=' . (int) $fichier['incident_id']);
+        }
+
+        $chemin = Upload::absolutePath(Incident::DOSSIER, (string) $fichier['nom_fichier']);
+        if ($chemin === null) {
+            $this->refuserApercu();
+        }
+
+        // Le type déclaré en base peut avoir été altéré : seul `finfo`, qui lit
+        // les octets, fait autorité. Un fichier dont le contenu ne correspond
+        // plus à une image raster est refusé sans message — une vignette
+        // cassée nuirait moins que l'affichage d'un contenu arbitraire.
+        $mime = (new \finfo(FILEINFO_MIME_TYPE))->file($chemin);
+        if (!isset(Incident::MIMES_VIGNETTE[(string) $mime])) {
+            Logger::error("Apercu refuse: type reel $mime pour la piece #" . (int) $fichier['id']);
+            http_response_code(415);
+            header('Content-Type: text/plain; charset=utf-8');
+            echo 'Aperçu indisponible pour ce type de fichier.';
+            exit;
+        }
+
+        header('Content-Type: ' . $mime);
+        header('Content-Length: ' . (string) filesize($chemin));
+        header('Content-Disposition: inline');
+        header('X-Content-Type-Options: nosniff');
+        header("Content-Security-Policy: default-src 'none'; sandbox");
+        // Pièce jointe privée : ni le navigateur ni un mandataire ne doit la
+        // conserver au-delà de la session.
+        header('Cache-Control: private, no-store');
+        readfile($chemin);
+        exit;
+    }
+
+    /** Réponse neutre pour une pièce jointe introuvable. */
+    private function refuserApercu(): never
+    {
+        http_response_code(404);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo 'Fichier introuvable.';
+        exit;
+    }
+
     /** Suppression d'une pièce jointe (POST). */
     public function deleteFile(): void
     {
@@ -184,7 +264,7 @@ final class IncidentController extends Controller
             Incident::deleteFile((int) $fichier['id']);
             Flash::add('success', 'Pièce jointe supprimée.');
         } catch (\PDOException $e) {
-            Core\Logger::error('Suppression pièce jointe impossible', $e);
+            Logger::error('Suppression pièce jointe impossible', $e);
             Flash::add('danger', 'Suppression impossible.');
         }
 

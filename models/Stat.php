@@ -21,19 +21,25 @@ final class Stat
     }
 
     /** Séries mensuelles des sorties de flotte sur 12 mois (échéancier). */
-    public static function exitSchedule(int $mois = 12): array
+    public static function exitSchedule(int $mois = 12, ?int $entiteId = null): array
     {
+        $whereEntite = ($entiteId !== null && $entiteId > 0) ? ' AND entite_id = :entite' : '';
+        $params = [
+            'du' => date('Y-m-01', strtotime('first day of this month')),
+            'au' => date('Y-m-t', strtotime("+$mois months")),
+        ];
+        if ($entiteId !== null && $entiteId > 0) {
+            $params['entite'] = $entiteId;
+        }
+
         try {
             $lignes = Database::all(
-                'SELECT DATE_FORMAT(date_sortie_prevue, \'%Y-%m\') AS mois, COUNT(*) AS total
+                "SELECT DATE_FORMAT(date_sortie_prevue, '%Y-%m') AS mois, COUNT(*) AS total
                  FROM vehicules
                  WHERE date_sortie_effective IS NULL
-                   AND date_sortie_prevue BETWEEN :du AND :au
-                 GROUP BY mois ORDER BY mois ASC',
-                [
-                    'du' => date('Y-m-01', strtotime('first day of this month')),
-                    'au' => date('Y-m-t', strtotime("+$mois months")),
-                ]
+                   AND date_sortie_prevue BETWEEN :du AND :au{$whereEntite}
+                 GROUP BY mois ORDER BY mois ASC",
+                $params
             );
         } catch (\PDOException $e) {
             Logger::error('Calcul échéancier impossible', $e);
@@ -63,7 +69,7 @@ final class Stat
      *
      * @return array<int, array{label:string, total:int}>
      */
-    public static function fleetSplit(string $dimension, string $filtre = ''): array
+    public static function fleetSplit(string $dimension, string $filtre = '', ?int $entiteId = null): array
     {
         $requetes = [
             'entite' => 'SELECT e.nom AS label, COUNT(*) AS total FROM vehicules v
@@ -80,12 +86,18 @@ final class Stat
 
         $sql = $requetes[$dimension] ?? $requetes['entite'];
         $params = [];
-        $where  = '';
+        $whereParts = [];
         if ($filtre !== '' && in_array($dimension, ['entite', 'loueur', 'lieu'], true)) {
             $col = ['entite' => 'v.entite_id', 'loueur' => 'v.loueur_id', 'lieu' => 'v.lieu_id'][$dimension];
-            $where = "WHERE $col = :f";
+            $whereParts[] = "$col = :f";
             $params['f'] = (int) $filtre;
         }
+        if ($entiteId !== null && $entiteId > 0) {
+            $whereParts[] = 'v.entite_id = :entite';
+            $params['entite'] = $entiteId;
+        }
+
+        $where = $whereParts !== [] ? 'WHERE ' . implode(' AND ', $whereParts) : '';
 
         try {
             $lignes = Database::all(str_replace('{where}', $where, $sql), $params);
@@ -104,22 +116,28 @@ final class Stat
     }
 
     /** Évolution mensuelle des coûts d'entretien, empilée par typologie. */
-    public static function maintenanceCosts(int $mois = 12): array
+    public static function maintenanceCosts(int $mois = 12, ?int $entiteId = null): array
     {
         $categories = ['constructeur', 'pneumatique', 'freinage', 'controle', 'carrosserie', 'autre'];
+        $whereEntite = ($entiteId !== null && $entiteId > 0) ? ' AND v.entite_id = :entite' : '';
+        $params = [
+            'du' => date('Y-m-01', strtotime("first day of -" . ($mois - 1) . " months")),
+            'au' => date('Y-m-t'),
+        ];
+        if ($entiteId !== null && $entiteId > 0) {
+            $params['entite'] = $entiteId;
+        }
 
         try {
             $lignes = Database::all(
-                'SELECT DATE_FORMAT(m.date_operation, \'%Y-%m\') AS mois, t.categorie,
+                "SELECT DATE_FORMAT(m.date_operation, '%Y-%m') AS mois, t.categorie,
                         COALESCE(SUM(m.cout_ht), 0) AS total
                  FROM maintenances m
                  INNER JOIN types_intervention t ON t.id = m.type_intervention_id
-                 WHERE m.date_operation BETWEEN :du AND :au
-                 GROUP BY mois, t.categorie ORDER BY mois ASC',
-                [
-                    'du' => date('Y-m-01', strtotime("first day of -" . ($mois - 1) . " months")),
-                    'au' => date('Y-m-t'),
-                ]
+                 INNER JOIN vehicules v ON v.id = m.vehicule_id
+                 WHERE m.date_operation BETWEEN :du AND :au{$whereEntite}
+                 GROUP BY mois, t.categorie ORDER BY mois ASC",
+                $params
             );
         } catch (\PDOException $e) {
             Logger::error('Calcul des coûts d\'entretien impossible', $e);
@@ -154,14 +172,19 @@ final class Stat
     }
 
     /** TCO d'entretien moyen par modèle de véhicule. */
-    public static function tcoByModel(int $limite = 12): array
+    public static function tcoByModel(int $limite = 12, ?int $entiteId = null): array
     {
         // Plafond borné par une constante entière : aucune saisie utilisateur n'atteint cette clause.
         $plafond = (int) max(1, min(50, $limite));
+        $whereEntite = ($entiteId !== null && $entiteId > 0) ? ' AND v.entite_id = :entite' : '';
+        $params = [];
+        if ($entiteId !== null && $entiteId > 0) {
+            $params['entite'] = $entiteId;
+        }
 
         try {
             $lignes = Database::all(
-                'SELECT CONCAT(ma.nom, \' \', mo.nom) AS label,
+                "SELECT CONCAT(ma.nom, ' ', mo.nom) AS label,
                         COUNT(DISTINCT v.id) AS vehicules,
                         COALESCE(SUM(m.cout_ht), 0) AS total,
                         COALESCE(SUM(m.cout_ht) / NULLIF(COUNT(DISTINCT v.id), 0), 0) AS moyenne
@@ -169,10 +192,12 @@ final class Stat
                  INNER JOIN vehicules v ON v.id = m.vehicule_id
                  INNER JOIN modeles mo ON mo.id = v.modele_id
                  INNER JOIN marques ma ON ma.id = mo.marque_id
+                 WHERE 1=1{$whereEntite}
                  GROUP BY ma.nom, mo.nom
                  HAVING total > 0
                  ORDER BY moyenne DESC
-                 LIMIT ' . $plafond
+                 LIMIT " . $plafond,
+                $params
             );
         } catch (\PDOException $e) {
             Logger::error('Calcul du TCO par modèle impossible', $e);
@@ -195,14 +220,22 @@ final class Stat
      *
      * @return array{par_type: array<int, array{label:string, total:int}>, tendance: array<int, array{mois:string, total:int}>}
      */
-    public static function incidents(int $mois = 12): array
+    public static function incidents(int $mois = 12, ?int $entiteId = null): array
     {
         $parType = [];
         $tendance = [];
+        $hasEntite = ($entiteId !== null && $entiteId > 0);
 
         try {
-            $types = Database::all('SELECT type AS label, COUNT(*) AS total FROM incidents
-                                    GROUP BY type ORDER BY total DESC');
+            $sqlTypes = 'SELECT i.type AS label, COUNT(*) AS total FROM incidents i';
+            $paramsTypes = [];
+            if ($hasEntite) {
+                $sqlTypes .= ' INNER JOIN vehicules v ON v.id = i.vehicule_id WHERE v.entite_id = :entite';
+                $paramsTypes['entite'] = $entiteId;
+            }
+            $sqlTypes .= ' GROUP BY i.type ORDER BY total DESC';
+
+            $types = Database::all($sqlTypes, $paramsTypes);
             $parType = array_map(
                 static fn (array $l): array => [
                     'label' => Incident::TYPES[(string) $l['label']] ?? (string) $l['label'],
@@ -211,15 +244,25 @@ final class Stat
                 $types
             );
 
-            $lignes = Database::all(
-                'SELECT DATE_FORMAT(date_incident, \'%Y-%m\') AS mois, COUNT(*) AS total
-                 FROM incidents WHERE date_incident BETWEEN :du AND :au
-                 GROUP BY mois ORDER BY mois ASC',
-                [
-                    'du' => date('Y-m-01', strtotime("first day of -" . ($mois - 1) . " months")),
-                    'au' => date('Y-m-t'),
-                ]
-            );
+            $paramsTendance = [
+                'du' => date('Y-m-01', strtotime("first day of -" . ($mois - 1) . " months")),
+                'au' => date('Y-m-t'),
+            ];
+            if ($hasEntite) {
+                $sqlTendance = 'SELECT DATE_FORMAT(i.date_incident, \'%Y-%m\') AS mois, COUNT(*) AS total
+                                FROM incidents i
+                                INNER JOIN vehicules v ON v.id = i.vehicule_id
+                                WHERE i.date_incident BETWEEN :du AND :au AND v.entite_id = :entite
+                                GROUP BY mois ORDER BY mois ASC';
+                $paramsTendance['entite'] = $entiteId;
+            } else {
+                $sqlTendance = 'SELECT DATE_FORMAT(i.date_incident, \'%Y-%m\') AS mois, COUNT(*) AS total
+                                FROM incidents i
+                                WHERE i.date_incident BETWEEN :du AND :au
+                                GROUP BY mois ORDER BY mois ASC';
+            }
+
+            $lignes = Database::all($sqlTendance, $paramsTendance);
         } catch (\PDOException $e) {
             Logger::error('Calcul de la sinistralité impossible', $e);
             return ['par_type' => [], 'tendance' => []];
@@ -243,14 +286,14 @@ final class Stat
     }
 
     /** Séries de coût d'entretien pour les cartes KPI (mois courant / année). */
-    public static function kpiCosts(): array
+    public static function kpiCosts(?int $entiteId = null): array
     {
         $debutMois  = date('Y-m-01');
         $debutAnnee = date('Y-01-01');
 
         return [
-            'mois'  => round(Maintenance::totalPeriode($debutMois, date('Y-m-t')), 2),
-            'annee' => round(Maintenance::totalPeriode($debutAnnee, date('Y-m-t')), 2),
+            'mois'  => round(Maintenance::totalPeriode($debutMois, date('Y-m-t'), $entiteId), 2),
+            'annee' => round(Maintenance::totalPeriode($debutAnnee, date('Y-m-t'), $entiteId), 2),
         ];
     }
 }

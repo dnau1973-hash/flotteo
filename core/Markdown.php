@@ -249,6 +249,12 @@ final class Markdown
         // Colonnes d'alignement déduites de la ligne de séparateurs.
         $separateur = $lignes[$i - 1];
         foreach (explode('|', trim($separateur, '| ')) as $c) {
+            // Chaque segment porte les espaces qui l'encadrent dans la source
+            // (`| :--- | :---: | :--- |`). Sans ce `trim`, un segment se termine
+            // par une espace et `str_ends_with($c, ':')` échoue : l'alignement
+            // centré était alors silencieusement ignoré et tous les tableaux des
+            // registres s'affichaient alignés à gauche.
+            $c = trim($c);
             $aligns[] = str_contains($c, ':') && str_ends_with($c, ':') ? 'center'
                 : (str_ends_with($c, ':') ? 'right' : 'left');
         }
@@ -259,7 +265,18 @@ final class Markdown
         }
 
         $colonnes = count($entete);
-        $html = '<div class="table-responsive my-3"><table class="table table-vcenter card-table">';
+
+        // Les tableaux de registre déclarent leur deuxième colonne centrée
+        // (`| :--- | :---: | :--- |`). C'est ce marqueur de la source, et non le
+        // libellé des en-têtes, qui permet au CSS de reconnaître la grille
+        // Fonctionnalité / État / Détail et d'y imposer des largeurs fixes :
+        // le calcul automatique donnait sinon à chaque bloc sa propre
+        // répartition, d'où des colonnes désalignées d'une section à l'autre.
+        // La Légende (2 colonnes) et les tableaux Avant / Après (3 colonnes
+        // alignées à gauche) restent hors grille et conservent leur rendu libre.
+        $grille = $colonnes === 3 && ($aligns[1] ?? 'left') === 'center' ? ' markdown-table--grille' : '';
+
+        $html = '<div class="table-responsive my-3"><table class="table table-vcenter card-table' . $grille . '">';
         $html .= '<thead><tr>';
         foreach ($entete as $index => $cellule) {
             $html .= '<th class="text-' . ($aligns[$index] ?? 'left') . '">' . self::inline($cellule) . '</th>';
@@ -281,12 +298,55 @@ final class Markdown
             $html .= '<tr>';
             foreach ($entete as $index => $_) {
                 $cellule = $ligne[$index] ?? '';
-                $html .= '<td class="text-' . ($aligns[$index] ?? 'left') . '">' . self::inline($cellule) . '</td>';
+                $html .= '<td class="text-' . ($aligns[$index] ?? 'left') . '">'
+                    . self::cellule($ligne[$index] ?? '', $aligns[$index] ?? 'left')
+                    . '</td>';
             }
             $html .= '</tr>';
         }
 
         return [$html . '</tbody></table></div>', '', $i];
+    }
+
+    /**
+     * Marqueurs d'état des registres, traduits en icônes Font Awesome.
+     *
+     * Les sources conservent le marqueur Unicode : il reste lisible dans un
+     * éditeur de texte et dans un diff, et c'est le moteur qui décide du rendu.
+     * Les quatre glyphes choisis sont déjà dans le sous-ensemble embarqué, donc
+     * la police n'est ni étendue ni téléchargée.
+     */
+    private const MARQUEURS = [
+        '✅' => ['check', 'Capacité active', 'actif'],
+        '🔄' => ['clock', 'Capacité planifiée', 'planifie'],
+        '⛔' => ['xmark', 'Hors périmètre', 'hors-perimetre'],
+        '⚠'  => ['triangle-exclamation', 'Réserve', 'reserve'],
+    ];
+
+    /**
+     * Rend une cellule de tableau.
+     *
+     * La conversion en icône ne concerne que les cellules dont le contenu
+     * entier est un marqueur d'état : c'est la colonne « État » des registres.
+     * Les occurrences citées dans une phrase — le journal des modifications et
+     * la recette parlent des emoji retirés — restent du texte, ce qui évite de
+     * réécrire l'histoire en transformant les mots qui la décrivent.
+     */
+    private static function cellule(string $contenu, string $align): string
+    {
+        // U+FE0F (sélecteur de variante) accompagne certains emoji dans la
+        // source : sans son retrait, « ⚠️ » ne correspondrait pas à « ⚠ ».
+        $cle = str_replace("\u{FE0F}", '', trim($contenu));
+
+        $marqueur = self::MARQUEURS[$cle] ?? null;
+        if ($marqueur === null) {
+            return self::inline($contenu);
+        }
+
+        [$glyphe, $libelle, $variante] = $marqueur;
+
+        return Icon::solid($glyphe, 'etat etat--' . $variante)
+            . '<span class="visually-hidden">' . htmlspecialchars($libelle, ENT_QUOTES, 'UTF-8') . '</span>';
     }
 
     /** Traitement en ligne : échappement HTML, puis gras, code, liens. */

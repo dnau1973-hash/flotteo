@@ -7,6 +7,11 @@
  *      suppression tant qu'un fichier est sélectionné — un dépôt l'emporte
  *      toujours sur la case à cocher, côté serveur comme ici.
  *
+ * L'ouverture du sélecteur de fichier ne relève pas de ce script : la vue pose
+ * une étiquette `for` sur le champ, si bien que le clic ouvre la boîte native.
+ * Une activation programmatique (`input.click()`) n'est pas fiable sur un champ
+ * masqué — selon le navigateur, le sélecteur ne s'ouvre pas, sans erreur.
+ *
  * Aucune alerte native : un format refusé est signalé dans l'aide affichée sous
  * le bouton de choix.
  *
@@ -32,7 +37,6 @@
 
     var apercu        = document.getElementById('u_avatar_apercu');
     var fichier       = document.getElementById('u_avatar_fichier');
-    var boutonChoisir = document.getElementById('u_avatar_choisir');
     var aideAvatar    = document.getElementById('u_avatar_aide');
     var blocSupprimer = document.getElementById('u_avatar_supprimer_bloc');
     var caseSupprimer = document.getElementById('u_avatar_supprimer');
@@ -88,10 +92,6 @@
         }
         afficherApercu('', '?');
         if (aideAvatar) { aideAvatar.textContent = AIDE_DEFAUT; }
-    }
-
-    if (boutonChoisir && fichier) {
-        boutonChoisir.addEventListener('click', function () { fichier.click(); });
     }
 
     if (fichier) {

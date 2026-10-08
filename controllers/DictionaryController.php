@@ -58,16 +58,66 @@ final class DictionaryController extends Controller
             $this->repondreErreurs($erreurs, $type);
         }
 
+        $nouveauFichier = null;
+        $ancienFichier = '';
+        $champFichier = null;
+        $dossierUpload = null;
+
+        if ($type === 'marques') {
+            $champFichier = 'logo';
+            $dossierUpload = Dictionary::DOSSIER_LOGO;
+        } elseif ($type === 'modeles') {
+            $champFichier = 'photo';
+            $dossierUpload = Dictionary::DOSSIER_PHOTO;
+        }
+
+        if ($champFichier !== null && $dossierUpload !== null) {
+            $supprimerFichier = Request::int($champFichier . '_supprimer') === 1;
+            if ($id > 0) {
+                try {
+                    $table = $def['table'];
+                    $ancienFichier = (string) \Core\Database::scalar("SELECT $champFichier FROM $table WHERE id = :id", ['id' => $id]);
+                } catch (\PDOException) {}
+            }
+
+            $fichierUpload = $_FILES[$champFichier] ?? null;
+            if (is_array($fichierUpload) && isset($fichierUpload['error']) && (int) $fichierUpload['error'] !== UPLOAD_ERR_NO_FILE) {
+                $depot = \Core\Upload::store($fichierUpload, $dossierUpload, Dictionary::MIMES_LOGO);
+                if ($depot['erreur'] !== null) {
+                    $labelFichier = $def['etiquette'][$champFichier] ?? ucfirst($champFichier);
+                    $this->repondreErreurs([$labelFichier . ' : ' . $depot['erreur']], $type);
+                }
+                $nouveauFichier = (string) $depot['chemin'];
+            }
+
+            if ($nouveauFichier !== null) {
+                $payload[$champFichier] = $nouveauFichier;
+            } elseif ($supprimerFichier && $id > 0) {
+                $payload[$champFichier] = null;
+            }
+        }
+
         try {
             if ($id > 0) {
                 Dictionary::update($type, $id, $payload);
+                if ($champFichier !== null && $dossierUpload !== null) {
+                    if ($nouveauFichier !== null && $ancienFichier !== '' && $ancienFichier !== $nouveauFichier) {
+                        \Core\Upload::remove($dossierUpload, $ancienFichier);
+                    } elseif (array_key_exists($champFichier, $payload) && $payload[$champFichier] === null && $ancienFichier !== '') {
+                        \Core\Upload::remove($dossierUpload, $ancienFichier);
+                    }
+                }
                 Flash::add('success', 'Entrée mise à jour.');
             } else {
                 Dictionary::create($type, $payload);
                 Flash::add('success', 'Entrée ajoutée à la table de paramétrage.');
             }
         } catch (\PDOException $e) {
-            Core\Logger::error("Enregistrement dictionnaire $type impossible", $e);
+            if ($nouveauFichier !== null && $dossierUpload !== null) {
+                \Core\Upload::remove($dossierUpload, $nouveauFichier);
+            }
+
+            Logger::error("Enregistrement dictionnaire $type impossible", $e);
             $this->repondreErreurs(['Enregistrement impossible : valeur déjà utilisée ou contrainte violée.'], $type);
         }
 

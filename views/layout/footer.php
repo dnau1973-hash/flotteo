@@ -39,16 +39,28 @@ $base = Url::base();
     </div><!-- /.page-wrapper -->
 </div><!-- /.page -->
 
+<button type="button" id="flotteo-retour-haut" class="btn btn-primary retour-haut d-print-none"
+        title="Revenir en haut de la page" aria-label="Revenir en haut de la page">
+    <i class="fa-solid fa-arrow-up" aria-hidden="true"></i>
+</button>
+
 <?php require __DIR__ . '/modals.php'; ?>
 
 <div class="toast-container position-fixed bottom-0 end-0 p-3" id="flotteo-toasts" aria-live="polite" aria-atomic="true"></div>
 
+<script src="<?= htmlspecialchars(Url::asset('tabler/libs/vanilla-calendar-pro/index.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(Url::asset('tabler/js/tabler.min.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(Url::asset('tabler/js/apexcharts.min.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
 <script>window.FLOTTEO = { base: <?= json_encode($base, JSON_UNESCAPED_SLASHES) ?>, token: <?= json_encode(Csrf::token(), JSON_UNESCAPED_SLASHES) ?> };</script>
 <script src="<?= htmlspecialchars(Url::asset('js/app.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php foreach (($scripts ?? []) as $script): ?>
-    <script src="<?= htmlspecialchars(Url::asset('js/' . $script), ENT_QUOTES, 'UTF-8') ?>"></script>
+    <?php
+    // Un nom sans repertoire est un script de page (`agenda.js`) et provient de
+    // `js/` ; un chemin explicite (`fullcalendar/fullcalendar.global.js`) est
+    // une bibliotheque embarquee et est resolu tel quel depuis `public/assets`.
+    $chemin = str_contains($script, '/') ? $script : 'js/' . $script;
+    ?>
+    <script src="<?= htmlspecialchars(Url::asset($chemin), ENT_QUOTES, 'UTF-8') ?>"></script>
 <?php endforeach; ?>
 </body>
 </html>

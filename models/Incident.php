@@ -29,6 +29,26 @@ final class Incident
 
     public const DOSSIER = 'incidents';
 
+    /**
+     * Types de pièces jointes présentables en vignette.
+     *
+     * Uniquement des images matricielles : ce sont les seules pièces jointes
+     * dont le navigateur sait décoder le contenu sans octet de signature. Le
+     * PDF, seul autre type autorisé au téléversement, n'a pas de vignette — le
+     * format n'en définit pas — et reçoit une icône à sa place.
+     */
+    public const MIMES_VIGNETTE = [
+        'image/jpeg' => 'jpg',
+        'image/png'  => 'png',
+        'image/webp' => 'webp',
+    ];
+
+    /** Une pièce jointe peut-elle être affichée en vignette ? */
+    public static function estImage(array $fichier): bool
+    {
+        return isset(self::MIMES_VIGNETTE[(string) $fichier['mime']]);
+    }
+
     public const SELECT_BASE = '
         SELECT i.*, v.immatriculation, ma.nom AS marque_nom, mo.nom AS modele_nom
         FROM incidents i
@@ -155,6 +175,28 @@ final class Incident
     public static function findFile(int $id): ?array
     {
         return Database::one('SELECT * FROM incidents_fichiers WHERE id = :id', ['id' => $id]);
+    }
+
+    /**
+     * Le fichier décrit par cette ligne est-il réellement présent sur le disque ?
+     *
+     * La ligne ne porte que des métadonnées : le jeu de démonstration enregistre
+     * ainsi ses quatorze pièces jointes *sans* les fichiers correspondants (voir
+     * `sql/demodata.sql`), et rien n'interdit à une ligne de survivre à la
+     * suppression manuelle d'un fichier. Le contrôle est donc nécessaire avant
+     * d'afficher une vignette : une `<img>` pointant sur un fichier absent
+     * s'affiche en image cassée, ce qui se lit comme une pièce jointe corrompue
+     * alors que la ligne est simplement orpheline.
+     */
+    public static function fichierPresent(array $fichier): bool
+    {
+        return Upload::absolutePath(self::DOSSIER, (string) $fichier['nom_fichier']) !== null;
+    }
+
+    /** La pièce jointe a-t-elle une vignette à afficher ? */
+    public static function aVignette(array $fichier): bool
+    {
+        return self::estImage($fichier) && self::fichierPresent($fichier);
     }
 
     public static function addFile(int $incidentId, string $nom, string $original, string $mime, int $taille): int

@@ -5,6 +5,409 @@ doivent être synchronisés à chaque livraison.
 
 ---
 
+## [1.2.3] — 2026-10-05
+
+### Corrections
+
+#### La « Matrice des incidents » restait vide, sans erreur console
+
+* **Symptôme.** La carte était servie, son cadre et son titre s'affichaient, et
+  le graphique ne se dessinait pas. **Aucune erreur console** : rien ne signalait
+  le défaut, ni à l'écran, ni dans le journal.
+* **Cause.** `ApiController` renvoie deux **tableaux plats** pour ce graphique —
+  `par_type` (les totaux) et `type_labels` (les libellés). Ils étaient injectés
+  tels quels dans `series`, produisant `series: [3, 2, 1]`. Or le radar exige des
+  **séries structurées** : ApexCharts y lit `series[i].data`, soit `undefined`,
+  et dessine un cadre vide. Le second graphique de la paire — la tendance, en
+  aire — était construit en `series: [{ name, data }]` : il s'affichait, ce qui
+  confirmait que la charge utile n'était pas en cause.
+* **Correctif.** `series: [{ name: 'Incidents', data: totaux }]`, `labels` restant
+  la liste des libellés. Reproduit hors ligne, avec la même version embarquée :
+  l'ancienne configuration produit un `<svg>` vide (0 tracé, 0 libellé), la
+  nouvelle en produit 7 et 5.
+* **Correction au passage.** Chaque graphique a désormais **sa propre garde**
+  d'existence et **son propre état vide** : ApexCharts ne signale pas l'absence
+  de données, il dessine des axes vides. Un conteneur sans données affiche
+  désormais un message lisible, et l'absence de l'un des deux graphiques n'empêche
+  plus l'autre de se dessiner.
+
+#### L'immatriculation se coupait en deux lignes dans les tableaux du tableau de bord
+
+* **Symptôme.** Sous 1 200 px de large, la colonne « Immat. » des cartes « Sorties
+  de flotte les plus proches » et « Véhicules immobilisés » se rétrécissait
+  jusqu'à 99 px, et `BW-239-44` s'affichait sur deux lignes (`BW-239-` puis `44`).
+  La hauteur de la ligne passait de 45 à 65 px, ce qui désalignait les rangées.
+* **Cause.** L'algorithme de répartition des colonnes des tableaux Tabler ne
+  garantit qu'une **part minimale** de largeur à chaque colonne et laisse le reste
+  aux colonnes voisines. L'immatriculation, seule colonne à contenu
+  indivisible, était donc la première sacrifiée — ses voisines, marque, modèle et
+  loueur, ont un contenu élastique et se réduisent sans casse.
+* **Correctif.** Classe `col-immat` (`white-space: nowrap`) sur l'en-tête et la
+  cellule : la largeur minimale de la colonne remonte à celle de son contenu le
+  plus long. Les colonnes voisaines récupèrent la différence, leurs contenus
+  étant eux-mêmes élastiques.
+* **Vérifié** à 1 600, 1 366 et 1 100 px : une seule ligne de texte, 16 px de
+  hauteur, `scrollWidth` égal à `clientWidth` — donc **ni coupure ni débordement**.
+  Aucun débordement horizontal de page.
+
+#### Les cartes du tableau de bord n'avaient pas toutes la même hauteur
+
+* **Symptôme.** Dans chaque paire de cartes voisines, la plus haute débordait la
+  plus basse de plusieurs dizaines de pixels — la différence venait du contenu,
+  jamais de l'intention graphique. Les quatre paires étaient concernées, et les
+  quatre cartes KPI entre elles.
+* **Cause.** Les colonnes portent une hauteur dictée par leur carte la plus haute,
+  mais rien ne demandait à la carte elle-même de l'occuper.
+* **Correctif.** `h-100 d-flex flex-column` sur les cartes, `flex-fill` sur le
+  corps pour qu'il occupe la hauteur restante — y compris les enveloppes
+  `.table-responsive` des deux listes, seules cartes à contenu de hauteur
+  variable.
+* **Vérifié sur la page servie** : écart de **0 px** sur les quatre paires de
+  cartes, écart de **0 px** entre les quatre cartes KPI, aucun débordement
+  horizontal. Les hauteurs constatées : 469, 446, 351 et 362 px selon la paire.
+
+### Ajouts
+
+#### Page Agenda : calendrier des échéances, révisions et immobilisations
+
+* **Besoin.** Les trois familles d'événements étaient dispersées sur trois pages :
+  l'échéancier, l'historique d'entretien, le tableau de bord. Rien ne disait « que
+  se passe-t-il, et quand, sur l'ensemble du parc ».
+* **Page `/agenda`, deuxième entrée de la barre de menu**, entre « Tableau de
+  bord » et « Véhicules ». Rôle `lecture`, comme l'échéancier.
+* **FullCalendar 7.0.0 auto-hébergé** dans `public/assets/fullcalendar/`
+  (`fullcalendar.global.js`, `skeleton.css`, thème `classic`), **aucun CDN** —
+  même parti pris que Tabler et ApexCharts. Seuls les fichiers du thème retenu
+  sont conservés : les quatre autres totalisent plus de 700 Ko pour rien.
+* **Trois vues** — Mois, Semaine, Liste — et navigation par les flèches. Chaque
+  événement porte l'URL de la fiche du véhicule : FullCalendar le rend en lien, ce
+  qui conserve le ctrl-clic, l'ouverture dans un nouvel onglet et le menu
+  contextuel du navigateur.
+* **Alimentation par intervalle affiché**, pas un jeu figé : `events` est une
+  fonction qui demande la plage visible à `GET /api/agenda/evenements`, et
+  `AgendaService` regroupe les trois sources en un seul appel. Les cartes de
+  synthèse et les compteurs des boutons sont **recalculés depuis cette réponse** :
+  figés au chargement, ils seraient faux dès le premier clic sur « suivant ».
+* **Plage bornée côté serveur.** `du` et `au` sont échangés s'ils sont inversés,
+  une plage dépassant 730 jours est ramenée à deux ans, et une date illisible
+  retombe sur le mois courant. `Request::date()` ne contrôle que la forme
+  (`YYYY-MM-DD`) : `strtotime()` est ce qui tranche sur le sens. Sans ce bornage,
+  `?du=1900-01-01` demandait plusieurs années d'historique d'entretien.
+* **Filtres de famille** dans l'en-tête de carte, état porté par `aria-pressed` :
+  une classe CSS serait perdue, le rendu de FullCalendar réécrivant le contenu des
+  jours. Masquer la dernière famille active est refusé — le calendrier se
+  viderait sans moyen de le remplir à nouveau. Le filtrage est refait par le
+  serveur, donc les compteurs ne peuvent pas diverger du calendrier.
+* **Échéances colorées par urgence** — rouge sous 30 jours, orange jusqu'à 90,
+  ambre jusqu'à 180, bleu ardoise au-delà : mêmes paliers que la page
+  « Échéances », le nombre de jours restants figurant dans l'info-bulle.
+
+#### FullCalendar v7 : trois propriétés supprimées, silencieusement
+
+* **Symptôme.** Aucun bug visible : la page s'affichait, le calendrier se
+  dessinait, aucun message, aucune erreur console — et **aucun style**.
+* **Cause.** La v7 a **retiré** `backgroundColor`, `borderColor` et `textColor`
+  (`0` occurrence de chacun dans le paquet), et ne lit plus `classNames` sous
+  forme de tableau mais `className` sous forme de chaîne. Une charge utile
+  écrite pour la v5/v6 est donc acceptée sans erreur et **ignorée** : tous les
+  événements gardaient la couleur du thème, et aucune classe à nous n'était posée.
+* **Constaté par mesure, pas à l'œil.** Sur la page servie, l'aplat des
+  événements vaut `rgb(55, 136, 216)` — la valeur par défaut du thème — quelle que
+  soit la famille, et `document.querySelectorAll('.flotteo-evenement').length`
+  renvoie 0. L'objet `classNames` se retrouve rangé dans `extendedProps`, ce qui
+  explique le silence : il est bien reçu, il n'est simplement pas lu.
+* **Correctif.** Un `color` par événement tient lieu d'aplat et de bordure ;
+  `className` porte les classes `flotteo-evenement*` ; la couleur du texte vient
+  de la feuille de style, ce qui la laisse au même endroit que le reste de
+  l'interface. Vérifié après correction : échéance critique `rgb(214, 57, 57)`,
+  révision `rgb(32, 107, 196)` — les valeurs de `flotteo.css`.
+
+#### Les boutons restaient en anglais, le titre était déjà français
+
+* **Symptôme.** Le calendrier affichait « **octobre 2026** » mais « Today /
+  Month / Week / List ». Un mélange des deux dans la même barre d'outils.
+* **Cause.** L'objet passé à `locale` n'est plus lu en v7 : les libellés sont des
+  options **plates**. Et `weekText` ne sert pas au bouton « semaine » mais au
+  **numéro de semaine** — le lui donner valait ne pas le traduire du tout.
+* **Correctif.** `locale: 'fr'` — le titre et les jours passent alors par `Intl` —
+  et les options `todayText`, `monthText`, `weekTextLong`, `listText`,
+  `dayTextLong`, avec `weekText: 'S{numero}'` pour le numéro de semaine.
+* **Vérifié** sur la page servie : boutons « Aujourd'hui / Mois / Semaine /
+  Liste », titre « octobre 2026 » et « septembre 2026 », en-têtes de jours
+  `lun. mar. mer. jeu. ven. sam. dim.` — la semaine commençant le lundi.
+
+#### Les noms de classes de FullCalendar ne sont pas stables
+
+* **Constat.** La bibliothèque **hache** ses classes internes : une cellule porte
+  `fc-4c fc-At`, un événement `fc-classic-TZ4`. Les feuilles de style livrées
+  avec le paquet sont générées pour ces noms, mais écrire `.fc-event` ou
+  `.fc-daygrid-day` dans `flotteo.css` n'aurait rien produit, et toute mesure de
+  test fondée sur ces sélecteurs renvoie 0 sans explication.
+* **Conséquence retenue.** Aucun sélecteur interne n'est utilisé : le style passe
+  par les variables `--fc-*` et par nos propres classes `flotteo-evenement*`,
+  déposées côté serveur via `className`. Elles nous appartiennent et resteront
+  valables d'une version à l'autre.
+
+#### La neuvième entrée de menu débordait de 60 px
+
+* **Symptôme.** À 1 200 px exactement — le seuil de `navbar-expand-xl` — la barre
+  affichait un défilement horizontal de 60 px.
+* **Cause.** Le fichier d'en-tête documentait déjà le risque : les huit entrées
+  tenaient dans 1 130 px sur 1 136 disponibles, soit 6 px de marge. Ajouter
+  l'Agenda consommait cette marge et la dépassait. Tabler réserve 0,75 rem de part
+  et d'autre de chaque entrée, soit 216 px de gouttière sur neuf liens.
+* **Correctif.** Gouttière ramenée à 0,375 rem par lien
+  (`--tblr-navbar-nav-link-padding-x-menu`) : le menu passe de 1 064 à 956 px.
+  L'espacement **vertical** et l'air autour de chaque libellé sont inchangés.
+* **Vérifié** à 1 600, 1 400, 1 280, 1 216 et 1 200 px : débordement nul. À
+  1 199 px la barre se replie en menu « burger », comme avant.
+
+#### `Core\View::useStyle()`
+
+* **Besoin.** L'agenda apporte trois feuilles de style. Les déclarer dans le corps
+  du document fonctionne, mais elles s'appliquent **après** l'affichage initial et
+  retardent le premier rendu.
+* **Ajout.** `View::useStyle()`, symétrique de `useScript()`, qui émet la feuille
+  dans l'en-tête. `useScript()` accepte désormais un chemin explicite
+  (`fullcalendar/fullcalendar.global.js`) en plus d'un nom de page (`agenda.js`) :
+  le préfixe `js/` n'est ajouté que s'il n'y a pas de `/` dans le nom.
+
+#### Recherche de mise à jour depuis les paramètres
+
+* **Besoin.** Rien ne signalait qu'une version de Flotteo plus récente existe :
+  il fallait suivre le dépôt à la main.
+* **Section « Mises à jour »** de `/admin/parametres/{section}` : dépôt GitHub de
+  référence saisi sous la forme `compte/depot`, recherche **à la demande**,
+  comparaison avec la version installée par `version_compare()`, lien vers la
+  publication. L'affichage relit le **dernier relevé mémorisé** et n'appelle
+  jamais le réseau : une section qui interrogerait GitHub à chaque ouverture
+  consommerait le quota de l'API et resterait bloquée sans réseau sortant.
+* **`Services\GithubClient`**, appel `api.github.com` par cURL — aucune
+  bibliothèque tierce. La saisie est traitée comme une entrée hostile : forme
+  `owner/repo` validée avant l'appel (ce qui écarte une URL complète autant
+  qu'un chemin ambigu), segments ré-encodés séparément, `CURLOPT_PROTOCOLS`
+  verrouillé sur HTTPS et redirections non suivies. La réponse est plafonnée à
+  256 Kio et l'URL renvoyée est vérifiée avant d'être transmise à l'écran.
+* **Jeton facultatif.** Sans jeton, l'API limite à 60 requêtes par heure et par
+  adresse IP. Le jeton se place dans `config/secrets.php` — **pas** dans la table
+  `parametres` : le module de sauvegarde exporte toute la base dans une archive
+  téléchargeable, et un `ghp_…` y donnerait accès aux dépôts du compte.
+  `FLOTTEO_GITHUB_TOKEN` prime sur ce fichier.
+
+#### Un dépôt sans version publiée était signalé « introuvable »
+
+* **Symptôme.** Pour un dépôt qui versionne par **étiquettes** sans jamais créer
+  de *release* — usage très répandu — la recherche de mise à jour échouait, et le
+  message **renvoyait l'administrateur à une comparaison d'étiquettes que
+  l'application ne savait pas faire**. Le dépôt était pourtant parfaitement
+  exploitable pour décider d'une mise à jour.
+* **Cause.** `releases/latest` répond 404 pour un dépôt sans version publiée
+  **comme** pour un dépôt inexistant : la seule différence tient dans le statut,
+  que l'API renvoie dans les deux cas. Le contrôle s'arrêtait sur ce 404.
+* **Correctif.** Après un 404, le dépôt est confirmé par un appel sur lui-même,
+  et ses étiquettes sont alors interrogées. Le repli retient le **plus haut
+  numéro** parmi les 30 premières étiquettes, et non la première d'entre elles :
+  GitHub ordonne ses étiquettes par date de création du tag, si bien qu'un
+  correctif retroporté (`v1.9.3` publié après `v2.1.0`) remontait en tête et
+  ferait régresser le numéro annoncé.
+* **Préversions écartées.** `versionNormalisee()` ramène `v7.3-rc6` à `7.3` :
+  le repli aurait donc annoncé comme disponible une version candidate. Le chemin
+  des versions publiées écarte déjà les préversions par construction — celui-ci
+  les écarte explicitement, et un dépôt dont toutes les étiquettes sont des
+  préversions est signalé comme tel plutôt que tronqué.
+* **Échecs distingués.** Trois messages distincts là où il y en avait un :
+  dépôt inexistant, dépôt sans version publiée **ni étiquette utilisable**, et
+  **échec de l'appel sur les étiquettes lui-même** (coupure réseau, limite de
+  débit), qui conserve son message d'origine au lieu d'être présenté comme un
+  dépôt sans version.
+* **Provenance affichée.** Le relevé conserve le champ `source` (`version` ou
+  `etiquette`). La carte porte alors « Étiquette la plus haute » au lieu de
+  « Version publiée », la date absente est signalée comme telle plutôt que
+  montrée par un tiret, et un encadré explique d'où vient le numéro.
+* **Vérifié** sur quatre dépôts réels : `releases/latest` (chemin inchangé,
+  `v7.8.3`), étiquettes seules (`torvalds/linux` → `v7.2`, après rejet de
+  `v7.3-rc6`), dépôt sans étiquette (`octocat/Hello-World`), dépôt inexistant.
+  Treize cas de détection de préversion vérifiés un à un.
+
+#### Vignettes des pièces jointes d'incident
+
+* **Besoin.** Une pièce jointe n'était identifiée que par son nom de fichier. Sur
+  un dossier d'incident, où se suivent constats, factures et photographies, il
+  fallait **ouvrir chaque fichier** pour savoir ce que l'on regardait.
+* **Choix.** Seules les **images matricielles** (JPEG, PNG, WebP) reçoivent une
+  vignette. Le PDF, seul autre type autorisé au téléversement, n'a pas de
+  vignette — le format n'en définit pas — et reçoit une icône à sa place.
+* **Nouvelle action `GET /incidents/fichier/apercu`.** Distincte de `download()`,
+  qui force `Content-Disposition: attachment` : le navigateur y **enregistrerait**
+  le fichier au lieu de l'afficher, et une vignette ne s'affiche jamais depuis une
+  réponse d'attachement. La réponse est privée (`Cache-Control: private,
+  no-store`) : une pièce jointe ne doit pas finir dans un cache partagé.
+* **Trois verrous.** La liste de types écarte les PDF ; le type est **relu sur le
+  fichier réel** par `finfo`, la ligne en base n'étant qu'une déclaration, et un
+  écart est journalisé puis refusé en `415` ; `X-Content-Type-Options: nosniff`
+  et `Content-Security-Policy: default-src 'none'; sandbox` neutralisent tout
+  traitement particulier du contenu. Vérifié : la CSP n'empêche pas le
+  chargement d'une image (`sandbox` ne s'applique qu'aux documents).
+* **Dégradation propre.** `Incident::aVignette()` vérifie que le fichier est
+  **présent sur le disque** avant d'émettre une `<img>`. Le jeu de démonstration
+  enregistre ses quatorze pièces jointes *sans* les fichiers — choix explicite,
+  documenté dans `sql/demodata.sql` et `scripts/seed/Sql.php` — et une `<img>`
+  pointant sur un fichier absent s'affiche en **image cassée**, ce qui se lit
+  comme une pièce jointe corrompue alors que la ligne est simplement orpheline.
+  L'icône porte alors la mention « Fichier absent du stockage », distincte du
+  « Aucun aperçu pour ce format » des PDF.
+* **Rendu.** Cadre de 56 px sur 56 px, `object-fit: cover` : un portrait
+  n'agrandit pas la ligne, un paysage ne la rétrécit pas, la silhouette reste
+  lisible. Le clic ouvre l'image dans un onglet (`rel="noopener"`).
+* **Vérifié** à 1 600, 1 280, 768 et 420 px : quatre lignes de 72 px, quatre
+  cadres de 56 × 56 px, aucun débordement horizontal. Sur une session réelle,
+  l'image servie par `apercu` est un PNG valide de 32 × 32 px ; un PDF renvoie
+  une redirection vers le dossier, un identifiant inconnu un `404` en texte.
+
+---
+
+## [1.2.2] — 2026-10-05
+
+### Corrections
+
+#### Le script de page n'était jamais émis : `view()` renvoyait une instance neuve
+
+* **Symptôme.** La modale d'édition d'un utilisateur s'ouvrait **vide**, son titre
+  restant « Nouvel utilisateur », et le bouton « Choisir une image » restait
+  inerte. Deux symptômes, une seule cause : le script de la page n'était pas
+  chargé du tout.
+* **Cause.** `Controller::view()` faisait `return new View()` — une **instance
+  neuve à chaque appel**. Or le contrôleur écrit `$this->view()->useScript(…)`
+  puis `$this->render(…)` : `render()` appelle `view()` à son tour et obtient une
+  **autre** instance, dont `$scripts` est vide. La déclaration du script se
+  perdait sur un objet que personne ne relisait, **sans la moindre erreur**.
+  Le pied de page ne recevait donc jamais la balise, et rien dans le HTML, la
+  console ni dans le journal ne le signalait.
+* **Confirmation.** Le journal d'accès est formel : sur six ouvertures de
+  `/admin/utilisateurs`, **aucune requête pour `/assets/js/utilisateurs.js`** —
+  le navigateur ne pouvait pas servir une copie d'un fichier qui ne lui était
+  jamais demandé.
+* **Correctif.** `Controller::view()` mémorise l'instance et la rend
+  systématiquement. `$this->view()->useScript(…)` fonctionne enfin comme on
+  l'écrit, et l'état accumulé par `useScript()` ou `share()` est bien celui que
+  `render()` relit.
+* **Portée réelle, plus large que la page Utilisateurs.** `ParamController`
+  déclarait `parametres.js` de la même manière : **le test d'envoi SMTP n'a donc
+  jamais fonctionné**, alors qu'INC-015 et INC-017 avaient été corrigés et
+  réceptionnés. Deux pages étaient concernées, un seul défaut.
+* **Piège refermé.** Deux usages coexistaient : `$this->useScript(…)` **dans la
+  vue**, où `$this` est l'instance réellement rendue — c'est ainsi que
+  `dashboard.js` et `entretien.js` fonctionnaient — et `$this->view()->useScript(…)`
+  **depuis le contrôleur**. Seul le premier marchait, sans que la différence
+  apparaisse nulle part. Le mécanisme est désormais unifié : la vue et le
+  contrôleur passent tous deux par la même instance.
+* **Vérifié sur la page réellement servie**, en session administrateur
+  authentifiée : la balise est présente, et le clic sur « Éditer » remplit
+  identité, email, rôle et état, bascule le titre sur « Modifier l'utilisateur »
+  et rend le mot de passe facultatif. Aucune erreur JavaScript.
+
+#### Les assets étaient livrés sans jeton de version
+
+* **Défaut réel, distinct du précédent.** `public/.htaccess` accorde sept jours
+  de cache aux CSS, JS, SVG et polices, mais **aucun jeton de version ne
+  distinguait deux contenus du même chemin** : un asset corrigé restait invisible
+  jusqu'à l'expiration de cette durée. Le défaut était masqué tant que les
+  scripts n'étaient pas demandés du tout ; il serait ressurgi dès que la balise
+  serait présente.
+* **Aggravant.** `mod_expires` n'est pas chargé sur ce serveur : aucun
+  `Cache-Control` n'est envoyé, et le navigateur applique une **fraîcheur
+  heuristique** déduite du seul `Last-Modified`, soit plusieurs jours pour un
+  fichier ancien.
+* **Correctif.** `Core\Url::asset()` ajoute un jeton `?v=`, valant l'horodatage de
+  modification du fichier. L'URL change au moment exact où le contenu change : le
+  navigateur redemande le fichier une fois et l'entrée de cache de l'ancienne
+  version devient inutile. **Aucune version à incrémenter à la main, donc aucun
+  oubli possible.**
+  * Un asset absent ne reçoit pas de jeton — `is_file()` rend `null` — et le 404
+    reste ainsi attribuable à un vrai fichier manquant.
+  * `public/uploads/` n'est volontairement pas versionné : le nom d'un fichier
+    déposé est tiré au hasard, donc un nouveau contenu change déjà de chemin.
+  * `Url::detect()` et `Url::to()` conservent leur sémantique, couvertes par leurs
+    trois cas de déploiement.
+
+### Constat — des directives de `public/.htaccess` sont inertes sur ce serveur
+
+* `mod_headers` et `mod_expires` ne sont pas chargés. Les blocs `<IfModule>`
+  correspondants sont donc ignorés, **sans message** : les en-têtes déclarés ne
+  sont pas envoyés, et aucune politique de cache ne l'est non plus.
+* Vérifié sur la page de connexion servie : `X-Content-Type-Options`,
+  `X-Frame-Options` et `Referrer-Policy` sont absents, et la réponse ne porte que
+  l'`Expires` de 1981 émis par PHP à l'ouverture de session, qui ne concerne que
+  le HTML.
+* Correctif hors périmètre de l'application : `sudo a2enmod headers expires` puis
+  rechargement d'Apache. Le jeton de version ci-dessus rend la correction
+  indépendante de la configuration du serveur : le cache long redevient sûr même
+  sans `mod_expires`.
+
+---
+
+## [1.2.1] — 2026-10-05
+
+### Corrections
+
+#### L'ajout d'un avatar échouait : la colonne `avatar` manquait en base
+
+* **Cause.** `sql/schema.sql` décrit la colonne `avatar`, mais une base créée
+  avant la version 1.2.0 ne l'a jamais reçue. `User::create()` et
+  `User::setAvatar()` transmettent tous deux la clé `avatar` — `create()` même
+  pour une création sans image, la valeur étant `null` — et MySQL répondait
+  `Unknown column 'avatar' in 'field list'`. Le contrôleur rattrape l'exception
+  PDO, retire le fichier déposé et affiche « Enregistrement impossible. ».
+* **Portée réelle :** ce n'était pas l'ajout d'un avatar qui était cassé, mais
+  **tout enregistrement d'un utilisateur**. La page s'affichait normalement,
+  `User::all()` passant par un `SELECT *` qui n'a jamais nommé la colonne.
+* **Gravité de la panne :** le message affiché ne mentionnait ni la colonne, ni
+  le fichier, ni la table. La cause n'apparaissait que dans le journal, sous
+  `SQLSTATE[42S22]: Column not found: 1054`.
+* **Correctif.** `sql/migrations.sql` créé, avec l'énoncé `ADD COLUMN IF NOT
+  EXISTS` — le fichier peut être réappliqué sans risque, notamment après un
+  `schema.sql` complet. Le README décrit désormais l'étape, absente de la
+  procédure d'installation, et nomme la conséquence de son omission.
+
+#### Un fichier proche de la limite tronquait le formulaire, sans explication
+
+* **Cause.** `post_max_size` vaut `8M` sur ce serveur, soit exactement la limite
+  applicative (`securite.taille_max_upload` = 8 Mio). Un fichier dont la taille
+  approche cette valeur produit un corps multipart plus long que `post_max_size`,
+  que PHP **tronque sans lever la moindre erreur** : `$_POST` et `$_FILES` sont
+  vidés, et aucun `UPLOAD_ERR_*` n'est renseigné. Le contrôle de CSRF échouait
+  donc en premier, sur un jeton pourtant envoyé — message trompeur, qui ne
+  mentionnait ni le fichier ni sa taille.
+* **Correctif.** `Core\Request::corpsTronque()` détecte le dépassement d'après
+  la longueur du corps reçu, seule information conservée par PHP dans ce cas.
+  `UserController::save()` et `IncidentController::save()` le testent **avant**
+  `guardPost()`, et nomment la limite du serveur. La détection est restreinte au
+  `multipart/form-data` : un corps JSON volumineux est lui aussi tronqué, mais le
+  message « fichier refusé » y serait faux.
+
+#### Le bouton « Choisir une image » n'ouvrait pas le sélecteur de fichier
+
+* **Cause.** Le champ était masqué par `visually-hidden` — 1 px, `clip:
+  rect(0, 0, 0, 0)` — et le bouton déclenchait l'ouverture par `input.click()`.
+  Une telle activation est **programmatique** : elle ne dépend pas du navigateur,
+  et selon le moteur et la version, la boîte de dialogue ne s'ouvre pas, sans
+  message ni erreur console. Le clic paraît alors sans effet.
+* **Correctif.** Le bouton devient une **étiquette `for="u_avatar_fichier"`**. La
+  délégation d'activation au champ associé est un mécanisme **natif** : le clic
+  ouvre le sélecteur sans JavaScript, et l'association est annoncée aux lecteurs
+  d'écran. La ligne `boutonChoisir.addEventListener('click', …)` et la variable
+  associée sont retirées du script, qui n'ouvre plus jamais de dialogue par
+  lui-même.
+* **Effet de bord corrigé au passage.** `label.btn` restait en `cursor: default` —
+  Tabler ne pose `cursor: pointer` que sur les éléments natifs cliquables — donc
+  l'étiquette ne paraissait pas cliquable. Règle ajoutée à `flotteo.css`.
+* **Vérifié** : l'étiquette est l'élément au pointeur de son propre centre, rend
+  les mêmes métriques qu'un `<button class="btn btn-sm">` de Tabler (mêmes padding,
+  bordure, rayon, `inline-flex`), et active le champ **avec le script de page
+  retiré du document**. Aucune erreur JavaScript au chargement.
+
+---
+
 ## [1.2.0] — 2026-10-03
 
 ### Évolutions
@@ -116,11 +519,14 @@ doivent être synchronisés à chaque livraison.
 
 ### Migration
 
-Une installation existante doit ajouter la colonne manquante :
+Une installation existante doit créer la colonne `avatar` :
 
 ```sql
 ALTER TABLE utilisateurs ADD COLUMN avatar VARCHAR(64) NULL DEFAULT NULL AFTER actif;
 ```
+
+Le même énoncé figure dans `sql/migrations.sql` (voir 1.2.1), sous une forme
+idempotente.
 
 ---
 

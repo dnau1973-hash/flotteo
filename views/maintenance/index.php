@@ -5,6 +5,7 @@ declare(strict_types=1);
  * Historique d'entretien : filtres, cumul et saisie des prestations.
  *
  * @var array $entretiens, $filtres, $vehicules, $types, $categories
+ * @var array<int, int> $nb_fichiers
  * @var float $total_ht
  * @var string $base_url
  */
@@ -92,14 +93,32 @@ $modifiable = Auth::can(Auth::ROLE_MODIFICATION);
                             </a>
                             <div class="small text-secondary"><?= $e($m['marque_nom'] . ' ' . $m['modele_nom']) ?></div>
                         </td>
-                        <td><?= $e((string) $m['type_libelle']) ?></td>
+                        <td>
+                            <?= $e((string) $m['type_libelle']) ?>
+                            <?php $nb = (int) ($nb_fichiers[(int) $m['id']] ?? 0); ?>
+                            <?php if ($nb > 0): ?>
+                                <span class="badge bg-secondary-lt ms-1"
+                                      title="<?= $nb ?> pièce(s) jointe(s) sur cette prestation">
+                                    <i class="fa-solid fa-paperclip" aria-hidden="true"></i> <?= $nb ?>
+                                </span>
+                            <?php endif; ?>
+                        </td>
                         <td><span class="badge bg-blue-lt"><?= $e(ucfirst((string) $m['type_categorie'])) ?></span></td>
                         <td class="text-secondary"><?= $e(number_format((int) $m['kilometrage'], 0, ',', ' ')) ?> km</td>
                         <td class="text-end"><?= $e(number_format((float) $m['cout_ht'], 2, ',', ' ')) ?> €</td>
                         <td class="text-end text-secondary"><?= $e(number_format((float) $m['cout_ttc'], 2, ',', ' ')) ?> €</td>
                         <td class="cell-actions text-end">
+                            <a class="btn btn-sm"
+                               href="<?= $e($base_url . '/entretien/voir?id=' . (int) $m['id']) ?>"
+                               title="Ouvrir la fiche et les pièces jointes">
+                                <svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+                                     stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M14 3v5h5"/><path d="M19 8v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7z"/>
+                                </svg>
+                            </a>
                             <?php if ($modifiable): ?>
-                                <button class="btn btn-sm" data-edition-entretien
+                                <button class="btn btn-sm" data-bs-toggle="modal" data-bs-target="#modal-entretien"
+                                        data-edition-entretien
                                         data-id="<?= (int) $m['id'] ?>"
                                         data-vehicule="<?= (int) $m['vehicule_id'] ?>"
                                         data-type="<?= (int) $m['type_intervention_id'] ?>"

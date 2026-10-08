@@ -190,9 +190,21 @@ final class Installer
                 ];
             }
 
-            // 3. Application du schéma.
+            // 3. Application du schéma complet, puis contrôle : chaque table
+            //    décrite dans schema.sql doit exister, sinon l'installation
+            //    est déclarée en échec (aucune migration ne viendra compléter).
             self::appliquerSchema($pdo);
-            $etapes[] = 'Schéma de base appliqué (' . count(self::tablesAttendues()) . ' tables).';
+            $attendues = self::tablesAttendues();
+            $creees    = array_map('strval', $pdo->query('SHOW TABLES')->fetchAll(\PDO::FETCH_COLUMN));
+            $manquantes = array_values(array_diff($attendues, $creees));
+            if ($manquantes !== []) {
+                return [
+                    'succes'  => false,
+                    'message' => 'Schéma incomplet : table(s) non créée(s) : ' . implode(', ', $manquantes) . '.',
+                    'etapes'  => $etapes,
+                ];
+            }
+            $etapes[] = 'Schéma complet appliqué et vérifié (' . count($attendues) . ' tables).';
 
             // 4. Compte administrateur (rôle « administration », droits maximaux).
             $stmt = $pdo->prepare(
@@ -230,7 +242,34 @@ final class Installer
         }
         $etapes[] = 'Fichier de configuration écrit (permissions 0600).';
 
-        // 6. Verrouillage : point de non-retour de l'assistant web.
+        /*
+         * 6. Jeton personnel GitHub — facultatif.
+         *
+         * Aucun fichier n'est créé si aucun jeton n'est fourni : le contrôle des
+         * mises à jour reste alors fonctionnel en accès anonyme, sur un dépôt
+         * public, et l'absence de fichier est le comportement normal plutôt
+         * qu'un fichier vide à interpréter.
+         *
+         * Cet emplacement est choisi parce que le module de sauvegarde exporte
+         * toute la base dans une archive téléchargeable : un jeton stocké dans
+         * `parametres` y donnerait accès aux dépôts du projet.
+         */
+        $jeton = mb_substr(trim((string) ($admin['github_token'] ?? '')), 0, 255);
+        if ($jeton !== '') {
+            if (!self::ecrireSecrets($jeton)) {
+                return [
+                    'succes'  => false,
+                    'message' => 'Base installée, mais écriture de config/secrets.php impossible. '
+                        . 'Vérifiez les droits du dossier config/ puis relancez scripts/install.php.',
+                    'etapes'  => $etapes,
+                ];
+            }
+            $etapes[] = 'Jeton GitHub enregistré (config/secrets.php, permissions 0640).';
+        } else {
+            $etapes[] = 'Recherche de mise à jour GitHub en accès anonyme (60 requêtes/heure).';
+        }
+
+        // 7. Verrouillage : point de non-retour de l'assistant web.
         $version = (string) ((require dirname(__DIR__) . '/config/config.php')['app']['version'] ?? '1.0.0');
         if (!InstallState::verrouiller($version)) {
             return [
@@ -293,6 +332,38 @@ final class Installer
             ], true) . ";\n";
 
         return InstallState::ecrireAtomique(InstallState::configPath(), $contenu, 0600);
+    }
+
+    /**
+     * Écrit `config/secrets.php` avec le jeton GitHub.
+     *
+     * `0640` et non `0600` : PHP s'exécute sous `www-data`, alors que le fichier
+     * appartient au compte qui a lancé l'installation. En `0600`, le groupe ne
+     * pourrait pas le lire et le contrôle des mises à jour retomberait en accès
+     * anonyme **sans message** — l'application fonctionnerait, mais avec un quota
+     * réduit. Voir les commandes `chown` / `chmod` du README.
+     *
+     * La valeur est échappée par `var_export` : aucune injection n'est possible
+     * dans le fichier généré, y compris pour un jeton contenant une apostrophe.
+     */
+    public static function ecrireSecrets(string $jeton): bool
+    {
+        $contenu = "<?php\ndeclare(strict_types=1);\n\n"
+            . "/**\n"
+            . " * Secrets de l'application.\n"
+            . " * Généré par l'assistant d'installation le " . date('d/m/Y H:i:s') . ".\n"
+            . " *\n"
+            . " * Permissions 0640, groupe www-data : PHP doit pouvoir le lire sous\n"
+            . " * ce compte, alors que le fichier appartient au compte d'installation.\n"
+            . " * Hors racine servie par Apache (public/.htaccess répond 403 sur\n"
+            . " * config/) et exclu du dépôt par .gitignore.\n"
+            . " *\n"
+            . " * La variable d'environnement FLOTTEO_GITHUB_TOKEN prime sur ce\n"
+            . " * fichier. Videz la chaîne pour revenir en accès anonyme.\n"
+            . " */\n\n"
+            . 'return ' . var_export(['github_token' => $jeton], true) . ";\n";
+
+        return InstallState::ecrireAtomique(InstallState::secretsPath(), $contenu, 0640);
     }
 
     /**

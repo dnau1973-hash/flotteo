@@ -32,8 +32,9 @@ Référentiels et Utilisateurs n'apparaissent pas pour un profil « Modification
 
 ### La barre supérieure
 
-Huit entrées, de gauche à droite : **Tableau de bord**, **Véhicules**, **Révisions**,
-**Incidents**, **Échéances**, **Référentiels**, **Paramètres**, **Utilisateurs**.
+Neuf entrées, de gauche à droite : **Tableau de bord**, **Agenda**, **Véhicules**,
+**Révisions**, **Incidents**, **Échéances**, **Référentiels**, **Paramètres**,
+**Utilisateurs**.
 
 L'entrée courante est signalée par un liseré bleu en dessous de son nom. **À partir
 de 1200 px de largeur d'écran**, la barre affiche toutes ses entrées d'un seul tenant.
@@ -85,12 +86,64 @@ et le type d'intervention provient des référentiels.
 
 Signalement et suivi d'un sinistre, avec pièce jointe téléchargeable depuis sa fiche.
 
+Les photographies (JPG, PNG, WEBP) s'affichent en **vignette** dans la liste des
+pièces jointes : un clic sur la vignette ouvre l'image dans un nouvel onglet, un
+clic sur le nom télécharge le fichier. Les PDF, qui n'ont pas d'aperçu possible,
+sont signalés par une icône. Le cadre d'une vignette reste vide si le fichier
+n'est plus présent sur le serveur — l'icône indique alors « Fichier absent du
+stockage ».
+
 ---
 
 ## 6. Échéances
 
 Suivi des fins de contrat : échéancier trié par urgence croissante, filtre par palier
 d'anticipation. Le nombre de véhicules de chaque filtre est affiché en badge.
+
+---
+
+## 6 bis. Agenda
+
+Un calendrier qui réunit les trois informations datées du parc, deuxième entrée de
+la barre. Il s'ouvre sur le mois en cours.
+
+**Les trois familles d'événements**, figurées par des pastilles de couleur dans
+l'en-tête de la carte :
+
+| Famille | Ce qu'elle montre | Comment elle est datée |
+| :--- | :--- | :--- |
+| **Échéances** (orange, rouge si proche) | la fin de contrat prévue d'un véhicule encore dans le parc | date réelle |
+| **Révisions** (bleu) | les interventions d'entretien **réalisées**, avec leur type et le kilométrage | date réelle |
+| **Immobilisations** (rouge) | les véhicules **immobilisés aujourd'hui**, avec le motif | **aucune date** |
+
+> **À savoir sur les révisions.** Flotteo enregistre les interventions au moment
+> où elles sont faites ; elle ne connaît pas la périodicité d'un véhicule et ne
+> peut donc pas annoncer une prochaine révision. Les événements bleus sont des
+> révisions **passées**.
+
+> **À savoir sur les immobilisations.** Une immobilisation est un état, pas une
+> date : Flotteu ne sait pas depuis quand un véhicule est immobilisé, ni quand il
+> remettra en service. Ces événements apparaissent donc **le jour où vous
+> consultez l'agenda**, et le pied de la carte le rappelle. Ne les lisez pas comme
+> un début d'immobilisation.
+
+**Se déplacer.** Les deux flèches de la barre d'outils passent au mois ou à la
+semaine précédente et suivante ; « Aujourd'hui » revient au jour courant.
+
+**Changer de vue.** Les trois boutons de droite bascule entre le **mois**, la
+**semaine** et la **liste**. La semaine commence le lundi.
+
+**Filtrer une famille.** Les trois boutons de l'en-tête de carte, avec leur nombre
+d'événements, masquent ou ré-affichent une famille. Le dernier bouton encore actif
+ne peut pas être masqué : le calendrier resterait vide sans moyen de le remplir à
+nouveau.
+
+**Ouvrir un véhicule.** Cliquez un événement : la fiche du véhicule s'ouvre. Comme
+il s'agit d'un lien, `Ctrl` + clic l'ouvre dans un nouvel onglet.
+
+**Ce que montre la couleur d'une échéance.** Rouge sous 30 jours, orange jusqu'à
+90, ambre jusqu'à 180, bleu ardoise au-delà. Survolez un événement pour connaître le
+nombre de jours restants et le loueur.
 
 ---
 
@@ -315,3 +368,4 @@ les transmettre. Elles sont régénérées par `php scripts/build_docs.php`.
 | Le bouton « Éditer » n'ouvre rien | Script en cache | Rechargement forcé de la page (Ctrl+Maj+R) |
 | « Type de fichier refusé » sur un avatar | Le fichier n'est pas une image, ou son extension ne correspond pas à son contenu | Déposez un JPEG, PNG ou WEBP ; un PDF ou un GIF sont refusés à cet endroit |
 | L'image n'apparaît pas après l'enregistrement | La modale avait été ouverte avant le rechargement forcé | Rechargez la page, rouvrez la modale, puis enregistrez |
+| « Erreur de jeton » après avoir choisi une image | L'envoi a dépassé la limite de taille du serveur | Choisissez une image plus légère, ou demandez à l'administrateur d'augmenter `post_max_size` |
