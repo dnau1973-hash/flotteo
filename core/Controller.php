@@ -43,7 +43,7 @@ abstract class Controller
 
     protected function redirect(string $chemin): never
     {
-        Response::redirect($this->baseUrl() . $chemin);
+        Response::redirect(Url::to($chemin));
     }
 
     protected function json(array $data, int $code = 200): never

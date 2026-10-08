@@ -17,7 +17,7 @@ DirectoryIndex index.php
 
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^ index.php [QSA,L]
+    RewriteRule ^(.*)$ index.php [QSA,L]
 </IfModule>
 
 # Filet de sécurité si mod_rewrite n'est pas activé dans Apache mais mod_dir l'est

@@ -60,8 +60,19 @@ final class Url
     public static function detect(string $scriptName): string
     {
         $repertoire = rtrim(str_replace('\\', '/', dirname($scriptName)), '/');
+        $base = ($repertoire === '' || $repertoire === '.') ? '' : $repertoire;
 
-        return ($repertoire === '' || $repertoire === '.') ? '' : $repertoire;
+        // Si le script s'exécute sous un sous-dossier se terminant par /public,
+        // mais que la requête du client n'inclut pas /public (ex: /flotteo/agenda),
+        // alors la base pour les routes et URLs est le dossier parent sans /public.
+        if (str_ends_with($base, '/public')) {
+            $uri = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
+            if (!str_contains($uri, '/public')) {
+                $base = substr($base, 0, -strlen('/public'));
+            }
+        }
+
+        return $base;
     }
 
     /**
@@ -111,9 +122,17 @@ final class Url
      * change, l'entrée en cache de l'ancienne version devient inutile et le
      * navigateur redemande le fichier une seule fois.
      */
+    /** Préfixe d'URL directe vers le dossier public physique (pour assets statiques et uploads). */
+    public static function publicPrefix(): string
+    {
+        $dir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+        return ($dir === '' || $dir === '.') ? '' : $dir;
+    }
+
     public static function asset(string $chemin): string
     {
-        $url = self::base() . '/assets/' . ltrim($chemin, '/');
+        $prefix = self::publicPrefix();
+        $url = ($prefix !== '' ? $prefix : self::base()) . '/assets/' . ltrim($chemin, '/');
 
         return ($version = self::versionAsset($chemin)) === null ? $url : $url . '?v=' . $version;
     }
@@ -152,7 +171,8 @@ final class Url
      */
     public static function upload(string $chemin): string
     {
-        return self::base() . '/uploads/' . ltrim($chemin, '/');
+        $prefix = self::publicPrefix();
+        return ($prefix !== '' ? $prefix : self::base()) . '/uploads/' . ltrim($chemin, '/');
     }
 
     /** URL absolue du manifeste d'application, servi à la racine du front controller. */

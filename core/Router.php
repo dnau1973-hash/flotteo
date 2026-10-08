@@ -135,6 +135,9 @@ final class Router
         if ($base !== '' && str_starts_with($uri, $base)) {
             $uri = substr($uri, strlen($base));
         }
+        if (str_starts_with($uri, '/public')) {
+            $uri = substr($uri, strlen('/public'));
+        }
         if (str_starts_with($uri, '/index.php')) {
             $uri = substr($uri, strlen('/index.php'));
         }

@@ -14,7 +14,7 @@ use Core\Flash;
 use Core\Url;
 
 $config = (require dirname(__DIR__, 2) . '/config/config.php');
-$base   = Url::base();
+$base   = Url::baseRoute();
 $flashes = Flash::pull();
 ?>
 <!doctype html>

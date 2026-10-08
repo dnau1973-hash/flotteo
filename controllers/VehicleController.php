@@ -235,6 +235,6 @@ final class VehicleController extends Controller
             $this->ko($message);
         }
         Flash::add('danger', $message);
-        Response::redirect($this->baseUrl() . ($id > 0 ? '/vehicules/voir?id=' . $id : '/vehicules'));
+        Response::redirect(Url::to($id > 0 ? '/vehicules/voir?id=' . $id : '/vehicules'));
     }
 }
