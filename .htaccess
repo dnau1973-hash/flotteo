@@ -26,18 +26,27 @@ Options -Indexes -MultiViews +FollowSymLinks
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    # Si la requête cible déjà public/ ou a déjà été redirigée en interne, arrêt immédiat
+    # Si la cible est déjà index.php ou public, arrêt immédiat
+    RewriteRule ^index\.php$ - [L]
+    RewriteRule ^public/index\.php$ - [L]
     RewriteCond %{ENV:REDIRECT_STATUS} 200 [OR]
-    RewriteCond %{REQUEST_URI} (^|/)public(/|$) [NC,OR]
+    RewriteCond %{REQUEST_URI} (^|/)public/ [NC,OR]
     RewriteCond %{REQUEST_FILENAME} /public/ [NC]
     RewriteRule ^ - [L]
 
-    RewriteRule ^public(?:/|$) - [L]
+    # Ressources statiques
+    RewriteRule ^(?:assets|uploads)/ public/$0 [L]
+    RewriteRule ^(?:app\.json|favicon\.svg|robots\.txt)$ public/$0 [L]
 
     # Interdire l'accès direct aux dossiers système hors public
     RewriteRule ^(?:config|core|controllers|models|services|views|sql|scripts|storage|docs|bin)(?:/|$) - [F,L]
 
-    # Rediriger vers public/
-    RewriteRule ^(.*)$ public/$1 [L]
+    # Fichiers et dossiers réels
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Rediriger toutes les routes applicatives directement vers public/index.php
+    RewriteRule ^ public/index.php [QSA,L]
 </IfModule>
 

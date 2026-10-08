@@ -15,12 +15,15 @@ DirectoryIndex index.php
     RewriteRule ^(?:assets|uploads)/ - [L]
     RewriteRule ^(?:app\.json|favicon\.svg|robots\.txt)$ - [L]
 
+    # Fichiers ou dossiers statiques réellement existants
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
     # Empêche l'accès direct aux ressources sensibles stockées côté serveur
     RewriteRule ^(?:config|core|controllers|models|services|views|sql|scripts|storage)/ - [F,L]
 
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^(.*)$ index.php [QSA,L]
+    RewriteRule ^ index.php [QSA,L]
 </IfModule>
 
 # Filet de sécurité si mod_rewrite n'est pas activé dans Apache mais mod_dir l'est
