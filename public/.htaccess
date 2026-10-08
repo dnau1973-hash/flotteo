@@ -1,3 +1,6 @@
+Options -Indexes -MultiViews +FollowSymLinks
+DirectoryIndex index.php
+
 # Flotteo - réécriture d'URL vers le front controller
 <IfModule mod_rewrite.c>
     RewriteEngine On
@@ -17,8 +20,12 @@
     RewriteRule ^ index.php [QSA,L]
 </IfModule>
 
-# Page d'accueil par défaut si le dossier est accolé directement au domaine
-DirectoryIndex index.php
+# Filet de sécurité si mod_rewrite n'est pas activé dans Apache mais mod_dir l'est
+<IfModule !mod_rewrite.c>
+    <IfModule mod_dir.c>
+        FallbackResource index.php
+    </IfModule>
+</IfModule>
 
 # --- Types MIME des ressources applicatives ---------------------------------
 <IfModule mod_mime.c>

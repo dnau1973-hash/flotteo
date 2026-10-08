@@ -1,0 +1,36 @@
+# Flotteo - Racine du projet
+Options -Indexes -MultiViews +FollowSymLinks
+
+# Protection des fichiers et répertoires sensibles
+<FilesMatch "^\.">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order deny,allow
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+<FilesMatch "\.(sql|lock|md|log|json|yml|yaml|sh|dist)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order deny,allow
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Redirection vers public/ si l'accès est fait sur la racine du dossier projet
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Interdire l'accès direct aux dossiers système hors public
+    RewriteRule ^(?:config|core|controllers|models|services|views|sql|scripts|storage|docs|bin)/ - [F,L]
+
+    # Rediriger vers public/
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+

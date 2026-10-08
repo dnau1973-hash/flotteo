@@ -130,10 +130,13 @@ final class Router
     /** Chemin courant nettoyé (sans query string, sans slash final). */
     public static function currentPath(): string
     {
-        $uri  = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+        $uri  = $_GET['r'] ?? $_GET['path'] ?? parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
         $base = Url::base();
         if ($base !== '' && str_starts_with($uri, $base)) {
             $uri = substr($uri, strlen($base));
+        }
+        if (str_starts_with($uri, '/index.php')) {
+            $uri = substr($uri, strlen('/index.php'));
         }
         $uri = '/' . trim($uri, '/');
         return $uri === '/' ? '/' : rtrim($uri, '/');
