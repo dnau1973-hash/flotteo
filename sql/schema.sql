@@ -20,6 +20,7 @@ DROP TABLE IF EXISTS incidents_fichiers;
 DROP TABLE IF EXISTS incidents;
 DROP TABLE IF EXISTS maintenances_fichiers;
 DROP TABLE IF EXISTS maintenances;
+DROP TABLE IF EXISTS vehicules_documents;
 DROP TABLE IF EXISTS vehicules;
 DROP TABLE IF EXISTS types_intervention;
 DROP TABLE IF EXISTS lieux;
@@ -138,6 +139,24 @@ CREATE TABLE vehicules (
     CONSTRAINT fk_vehicules_entite FOREIGN KEY (entite_id)  REFERENCES entites (id),
     CONSTRAINT fk_vehicules_loueur FOREIGN KEY (loueur_id)  REFERENCES loueurs (id),
     CONSTRAINT fk_vehicules_lieu   FOREIGN KEY (lieu_id)    REFERENCES lieux (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Documents & justificatifs du véhicule (carte grise, assurance, etc.)
+CREATE TABLE vehicules_documents (
+    id              INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    vehicule_id     INT UNSIGNED NOT NULL,
+    type            VARCHAR(40) NOT NULL DEFAULT 'autre',
+    titre           VARCHAR(140) NOT NULL,
+    date_expiration DATE NULL DEFAULT NULL,
+    nom_fichier     VARCHAR(80) NOT NULL,
+    nom_original    VARCHAR(190) NOT NULL,
+    mime            VARCHAR(80) NOT NULL,
+    taille          INT UNSIGNED NOT NULL DEFAULT 0,
+    created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_documents_vehicule (vehicule_id),
+    KEY idx_documents_type (type),
+    CONSTRAINT fk_documents_vehicule FOREIGN KEY (vehicule_id) REFERENCES vehicules (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --- Entretien --------------------------------------------------------------

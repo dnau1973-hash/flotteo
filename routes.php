@@ -49,6 +49,10 @@ $router->post('/vehicules/enregistrer', VehicleController::class, 'save');
 $router->post('/vehicules/supprimer', VehicleController::class, 'delete');
 $router->post('/vehicules/importer-csv', VehicleController::class, 'importerCsv');
 $router->get('/vehicules/modele-csv', VehicleController::class, 'modeleCsv');
+$router->post('/vehicules/document', VehicleController::class, 'uploadDocument');
+$router->get('/vehicules/document/telecharger', VehicleController::class, 'downloadDocument');
+$router->get('/vehicules/document/apercu', VehicleController::class, 'previewDocument');
+$router->post('/vehicules/document/supprimer', VehicleController::class, 'deleteDocument');
 
 // --- Entretien ---------------------------------------------------------------
 $router->get('/entretien', MaintenanceController::class, 'index');

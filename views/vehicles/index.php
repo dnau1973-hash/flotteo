@@ -219,10 +219,30 @@ $pagesAffichees = $calculerPages($page, $nbPages);
                         <td class="text-secondary"><?= $e((string) $v['date_sortie_prevue']) ?></td>
                         <?php
                         $dureeContrat = $v['duree_contrat'] !== null ? (string) $v['duree_contrat'] . ' mois' : '—';
-                        $kmMaxi = $v['km_maxi'] !== null ? number_format($v['km_maxi'], 0, ',', ' ') . ' km' : '—';
                         ?>
-                        <td class="text-secondary"><?php echo $e($dureeContrat); ?></td>
-                        <td class="text-secondary"><?php echo $e($kmMaxi); ?></td>
+                        <td class="text-secondary"><?= $e($dureeContrat) ?></td>
+                        <td class="text-secondary text-nowrap">
+                            <?php if (!empty($v['km_maxi']) && (int) $v['km_maxi'] > 0): ?>
+                                <?php
+                                $kmMax = (int) $v['km_maxi'];
+                                $kmActuel = (int) ($v['kilometrage'] ?? 0);
+                                $pctKm = (int) round(($kmActuel / $kmMax) * 100);
+                                $largeur = min(100, max(0, $pctKm));
+                                $couleur = $pctKm > 100 ? '#d63939' : ($pctKm > 85 ? '#f59f00' : '#206bc4');
+                                ?>
+                                <div class="d-flex align-items-center justify-content-between gap-2" style="min-width: 100px;">
+                                    <span><?= number_format($kmMax, 0, ',', ' ') ?> km</span>
+                                    <small class="<?= $pctKm > 100 ? 'text-danger fw-bold' : ($pctKm > 85 ? 'text-warning' : 'text-secondary') ?>" style="font-size: 0.75rem;">
+                                        <?= $pctKm ?>%
+                                    </small>
+                                </div>
+                                <div class="jauge mt-1" style="height: 4px;" title="<?= number_format($kmActuel, 0, ',', ' ') ?> / <?= number_format($kmMax, 0, ',', ' ') ?> km (<?= $pctKm ?>%)">
+                                    <span style="width: <?= $largeur ?>%; background: <?= $couleur ?>;"></span>
+                                </div>
+                            <?php else: ?>
+                                —
+                            <?php endif; ?>
+                        </td>
                         <td>
                             <?php if ($jours === null): ?>
                                 <span class="badge bg-secondary-lt">Restitué</span>

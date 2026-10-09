@@ -9,9 +9,11 @@ use Core\Flash;
 use Core\Logger;
 use Core\Request;
 use Core\Response;
+use Core\Upload;
 use Models\Dictionary;
 use Models\Maintenance;
 use Models\Vehicle;
+use Models\VehicleDocument;
 
 
 /**
@@ -87,6 +89,8 @@ final class VehicleController extends Controller
             ],
             'statuts' => Vehicle::STATUTS,
             'historiqueKm' => \Models\Mileage::historique12Mois($id),
+            'documents'    => VehicleDocument::forVehicle($id),
+            'docTypes'     => VehicleDocument::TYPES,
         ]);
     }
 
@@ -221,6 +225,148 @@ final class VehicleController extends Controller
             fclose($out);
         }
         exit;
+    }
+
+    /**
+     * Dépôt d'un document sur un véhicule (POST, multipart).
+     */
+    public function uploadDocument(): void
+    {
+        $this->guardPost();
+
+        $vehiculeId = Request::int('vehicule_id');
+        $vehicule   = $vehiculeId > 0 ? Vehicle::find($vehiculeId) : null;
+        if ($vehicule === null) {
+            Flash::add('danger', 'Véhicule introuvable.');
+            $this->redirect('/vehicules');
+        }
+
+        $type           = (string) Request::input('type', VehicleDocument::TYPE_AUTRE);
+        $titre          = (string) Request::input('titre', '');
+        $dateExpiration = Request::date('date_expiration') ?: null;
+
+        $fichier = $_FILES['fichier'] ?? null;
+        if (!is_array($fichier)) {
+            Flash::add('danger', 'Aucun fichier reçu.');
+            $this->redirect('/vehicules/voir?id=' . $vehiculeId);
+        }
+
+        $depot = Upload::store($fichier, VehicleDocument::DOSSIER, VehicleDocument::MIMES);
+        if ($depot['erreur'] !== null) {
+            Flash::add('danger', (string) $depot['erreur']);
+            $this->redirect('/vehicules/voir?id=' . $vehiculeId);
+        }
+
+        try {
+            VehicleDocument::add(
+                $vehiculeId,
+                $type,
+                $titre,
+                $dateExpiration,
+                (string) $depot['chemin'],
+                (string) ($fichier['name'] ?? 'document'),
+                (string) $depot['mime'],
+                (int) $depot['taille']
+            );
+            Flash::add('success', 'Document ajouté avec succès au véhicule.');
+        } catch (\PDOException $e) {
+            Logger::error("Enregistrement document véhicule impossible pour #$vehiculeId", $e);
+            Upload::remove(VehicleDocument::DOSSIER, (string) $depot['chemin']);
+            Flash::add('danger', 'Le document n\'a pas pu être enregistré.');
+        }
+
+        $this->redirect('/vehicules/voir?id=' . $vehiculeId);
+    }
+
+    /**
+     * Téléchargement d'un document d'un véhicule.
+     */
+    public function downloadDocument(): void
+    {
+        $this->guard();
+        $doc = VehicleDocument::find(Request::int('id'));
+        if ($doc === null) {
+            Flash::add('danger', 'Document introuvable.');
+            $this->redirect('/vehicules');
+        }
+
+        $chemin = Upload::absolutePath(VehicleDocument::DOSSIER, (string) $doc['nom_fichier']);
+        if ($chemin === null) {
+            Flash::add('danger', 'Fichier absent du stockage.');
+            $this->redirect('/vehicules/voir?id=' . (int) $doc['vehicule_id']);
+        }
+
+        $nom = preg_replace('/[^A-Za-z0-9._-]/', '_', (string) $doc['nom_original']) ?: 'document';
+        header('Content-Type: ' . (string) $doc['mime']);
+        header('Content-Length: ' . (string) filesize($chemin));
+        header('Content-Disposition: attachment; filename="' . $nom . '"');
+        header('X-Content-Type-Options: nosniff');
+        readfile($chemin);
+        exit;
+    }
+
+    /**
+     * Aperçu en ligne d'un document (pour visionneuse modale).
+     */
+    public function previewDocument(): void
+    {
+        $this->guard();
+        $doc = VehicleDocument::find(Request::int('id'));
+        if ($doc === null) {
+            http_response_code(404);
+            header('Content-Type: text/plain; charset=utf-8');
+            echo 'Document introuvable.';
+            exit;
+        }
+
+        $chemin = Upload::absolutePath(VehicleDocument::DOSSIER, (string) $doc['nom_fichier']);
+        if ($chemin === null) {
+            http_response_code(404);
+            header('Content-Type: text/plain; charset=utf-8');
+            echo 'Fichier absent du stockage.';
+            exit;
+        }
+
+        $mime = (new \finfo(FILEINFO_MIME_TYPE))->file($chemin);
+        if (!isset(VehicleDocument::MIMES[(string) $mime])) {
+            Logger::error("Aperçu document véhicule refusé: type réel $mime pour le doc #" . (int) $doc['id']);
+            http_response_code(415);
+            header('Content-Type: text/plain; charset=utf-8');
+            echo 'Aperçu indisponible pour ce type de fichier.';
+            exit;
+        }
+
+        header('Content-Type: ' . $mime);
+        header('Content-Length: ' . (string) filesize($chemin));
+        header('Content-Disposition: inline');
+        header('X-Content-Type-Options: nosniff');
+        header("Content-Security-Policy: default-src 'none'; sandbox");
+        header('Cache-Control: private, no-store');
+        readfile($chemin);
+        exit;
+    }
+
+    /**
+     * Suppression d'un document (POST).
+     */
+    public function deleteDocument(): void
+    {
+        $this->guardPost();
+        $id  = Request::int('id');
+        $doc = VehicleDocument::find($id);
+        if ($doc === null) {
+            Flash::add('danger', 'Document introuvable.');
+            $this->redirect('/vehicules');
+        }
+
+        $vehiculeId = (int) $doc['vehicule_id'];
+        if (VehicleDocument::delete($id)) {
+            Flash::add('success', 'Le document a été supprimé.');
+        } else {
+            Flash::add('danger', 'Suppression impossible.');
+        }
+
+        $this->redirect('/vehicules/voir?id=' . $vehiculeId);
     }
 
     /**
