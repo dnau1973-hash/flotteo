@@ -124,10 +124,18 @@ try {
 
         $samba = (string) ($resultat['samba'] ?? 'non_configure');
         if ($samba === 'echec') {
-            $sortie('Alerte : archive produite, copie réseau en échec — ' . $resultat['message']);
+            $sortie('Alerte : archive produite, copie réseau en échec — ' . (string) ($resultat['samba_message'] ?? ''));
             $code = 1;
         } elseif ($samba === 'reussi') {
-            $sortie('Copie réseau effectuée.');
+            $sortie('Copie réseau Samba effectuée.');
+        }
+
+        $usb = (string) ($resultat['usb'] ?? 'non_configure');
+        if ($usb === 'echec') {
+            $sortie('Alerte : archive produite, copie USB en échec — ' . (string) ($resultat['usb_message'] ?? ''));
+            $code = 1;
+        } elseif ($usb === 'reussi') {
+            $sortie('Copie sur support USB / disque externe effectuée.');
         }
     } else {
         $sortie('Rotation seule : aucune archive produite.');

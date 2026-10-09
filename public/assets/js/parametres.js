@@ -151,4 +151,66 @@
             }
         });
     })();
+
+    // ------------------------------------------------------- Test Clé USB
+    (function () {
+        var bouton = document.getElementById('bouton-test-usb');
+        if (!bouton) { return; }
+
+        var url = bouton.getAttribute('data-url') || '';
+        var enCours = false;
+
+        function zone() {
+            var noeud = document.getElementById('resultat-test-usb');
+            if (noeud) { return noeud; }
+
+            noeud = document.createElement('div');
+            noeud.id = 'resultat-test-usb';
+            noeud.className = 'mt-3';
+            bouton.parentNode.insertBefore(noeud, bouton.parentNode.nextSibling);
+            return noeud;
+        }
+
+        function afficher(type, message) {
+            var cible = zone();
+            cible.innerHTML = '';
+            var alerte = document.createElement('div');
+            alerte.className = 'alert alert-' + type;
+            alerte.textContent = message;
+            cible.appendChild(alerte);
+        }
+
+        function relever(champ) {
+            var noeud = document.getElementById(champ);
+            return noeud ? noeud.value : '';
+        }
+
+        bouton.addEventListener('click', async function () {
+            if (enCours) { return; }
+
+            var dossier = relever('sauvegarde_usb_dossier');
+            if (!dossier) {
+                afficher('warning', 'Renseignez un chemin de répertoire ou point de montage.');
+                return;
+            }
+
+            enCours = true;
+            bouton.disabled = true;
+            afficher('info', 'Vérification de l\'accès au répertoire…');
+
+            try {
+                const reponse = await window.flotteoPost(url, {
+                    sauvegarde_usb_dossier: dossier
+                });
+                const corps = reponse.json || {};
+                afficher(corps.success ? 'success' : 'danger',
+                    corps.message || 'Réponse inattendue du serveur.');
+            } catch (e) {
+                afficher('danger', "Le serveur n'a pas répondu. Réessayez dans un instant.");
+            } finally {
+                enCours = false;
+                bouton.disabled = false;
+            }
+        });
+    })();
 })();

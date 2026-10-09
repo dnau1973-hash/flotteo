@@ -29,12 +29,17 @@ $icone = static fn (string $nom, string $classes = ''): string => Icon::solid($n
 
 $v = static fn (string $cle): string => (string) ($valeurs[$cle] ?? '');
 
-$historique   = $sauvegardes['historique'] ?? [];
-$partageActif = (bool) ($sauvegardes['partageActif'] ?? false);
-$transport    = $sauvegardes['transport'] ?? null;
-$invite       = (bool) ($sauvegardes['invite'] ?? true);
-$alerte       = (string) ($sauvegardes['transportMessage'] ?? '');
-$derniere     = $historique[0] ?? null;
+$historique      = $sauvegardes['historique'] ?? [];
+$partageActif    = (bool) ($sauvegardes['partageActif'] ?? false);
+$transport       = $sauvegardes['transport'] ?? null;
+$invite          = (bool) ($sauvegardes['invite'] ?? true);
+$alerte          = (string) ($sauvegardes['transportMessage'] ?? '');
+$usbActif        = (bool) ($sauvegardes['usbActif'] ?? false);
+$usbDossier      = (string) ($sauvegardes['usbDossier'] ?? '/media/usb');
+$usbPresent      = (bool) ($sauvegardes['usbPresent'] ?? false);
+$usbInscriptible = (bool) ($sauvegardes['usbInscriptible'] ?? false);
+$usbMessage      = (string) ($sauvegardes['usbMessage'] ?? '');
+$derniere        = $historique[0] ?? null;
 ?>
 
 <!-- ======================= Exécution immédiate ======================= -->
@@ -226,6 +231,38 @@ $derniere     = $historique[0] ?? null;
                 <?= $e($alerte) ?>
             <?php endif; ?>
         </div>
+    <div class="card-body border-top">
+        <h4 class="mb-3"><?= $icone('hard-drive', 'me-2') ?>Clé USB / Disque externe local</h4>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">Support externe local</label>
+                <label class="form-check form-switch mt-1">
+                    <input class="form-check-input" type="checkbox" id="sauvegarde_usb_actif"
+                           name="sauvegarde_usb_actif" value="1" <?= $usbActif ? 'checked' : '' ?>
+                           form="form-sauvegardes-reglages">
+                    <span class="form-check-label">
+                        <?= $usbActif ? 'Copie automatique vers support USB activée' : 'Copie automatique vers support USB désactivée' ?>
+                    </span>
+                </label>
+                <p class="form-hint mb-0">
+                    Lors de chaque sauvegarde, une copie de l'archive est déposée dans le dossier de destination ou le point de montage du support externe.
+                </p>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="sauvegarde_usb_dossier">Répertoire cible / Point de montage</label>
+                <input type="text" class="form-control font-monospace" id="sauvegarde_usb_dossier" name="sauvegarde_usb_dossier"
+                       maxlength="190" placeholder="/media/usb ou /mnt/usbdrive"
+                       form="form-sauvegardes-reglages" value="<?= $e($v('sauvegarde_usb_dossier') !== '' ? $v('sauvegarde_usb_dossier') : '/media/usb') ?>">
+                <p class="form-hint mb-0">
+                    Chemin d'accès absolu vers le dossier du disque externe ou de la clé USB monté(e) sur le serveur.
+                </p>
+            </div>
+        </div>
+
+        <div class="alert alert-<?= $usbInscriptible ? 'success' : ($usbPresent ? 'warning' : 'secondary') ?> mt-3 mb-0">
+            <?= $icone($usbInscriptible ? 'circle-check' : 'triangle-exclamation', 'me-1') ?>
+            <strong>Statut du support externe :</strong> <?= $e($usbMessage) ?>
+        </div>
     </div>
 
     <div class="card-footer d-flex justify-content-end">
@@ -237,15 +274,18 @@ $derniere     = $historique[0] ?? null;
 
 <!-- ======================== Test de connexion ======================== -->
 <div class="card-body border-top">
-    <h4 class="mb-3"><?= $icone('server', 'me-2') ?>Épreuve du partage</h4>
+    <h4 class="mb-3"><?= $icone('server', 'me-2') ?>Épreuves des destinations</h4>
     <div class="d-flex flex-wrap align-items-center gap-3">
         <button type="button" class="btn btn-outline-primary" id="bouton-test-samba"
                 data-url="<?= $e($base_url . '/admin/sauvegardes/tester') ?>">
-            <?= $icone('network-wired', 'me-2') ?>Tester la connexion Samba
+            <?= $icone('network-wired', 'me-2') ?>Tester le partage Samba
+        </button>
+        <button type="button" class="btn btn-outline-secondary" id="bouton-test-usb"
+                data-url="<?= $e($base_url . '/admin/sauvegardes/tester-usb') ?>">
+            <?= $icone('hard-drive', 'me-2') ?>Tester le répertoire / clé USB
         </button>
         <span class="text-secondary small">
-            Les valeurs actuellement saisies sont éprouvées, sans les enregistrer :
-            un partage peut ainsi être validé avant d'être persisté.
+            Les valeurs saisies sont éprouvées sans être enregistrées.
         </span>
     </div>
 </div>
@@ -267,17 +307,19 @@ $derniere     = $historique[0] ?? null;
                     <th>Date</th>
                     <th class="w-1">Taille</th>
                     <th class="w-1">Contenu</th>
-                    <th>Partage</th>
+                    <th>Destinations</th>
                     <th class="w-1"></th>
                 </tr>
                 </thead>
                 <tbody>
                 <?php foreach ($historique as $s): ?>
                     <?php
-                    $fichier   = (string) $s['fichier'];
-                    $present   = \Services\BackupService::cheminArchive($fichier) !== null;
-                    $statut    = (string) $s['samba_statut'];
-                    $couleur   = ['reussi' => 'bg-green-lt', 'echec' => 'bg-red-lt', 'non_configure' => 'bg-secondary-lt'][$statut] ?? 'bg-secondary-lt';
+                    $fichier    = (string) $s['fichier'];
+                    $present    = \Services\BackupService::cheminArchive($fichier) !== null;
+                    $statut     = (string) $s['samba_statut'];
+                    $couleur    = ['reussi' => 'bg-green-lt', 'echec' => 'bg-red-lt', 'non_configure' => 'bg-secondary-lt'][$statut] ?? 'bg-secondary-lt';
+                    $usbStatut  = (string) ($s['usb_statut'] ?? 'non_configure');
+                    $couleurUsb = ['reussi' => 'bg-green-lt', 'echec' => 'bg-red-lt', 'non_configure' => 'bg-secondary-lt'][$usbStatut] ?? 'bg-secondary-lt';
                     ?>
                     <tr>
                         <td>
@@ -292,18 +334,34 @@ $derniere     = $historique[0] ?? null;
                             <?= (int) $s['tables_dump'] ?> tables · <?= (int) $s['fichiers_inclus'] ?> fichiers
                         </td>
                         <td>
-                            <span class="badge <?= $couleur ?>"><?= $e(Backup::SAMBA_STATUTS[$statut] ?? $statut) ?></span>
-                            <?php if ($statut === 'echec' && (string) $s['samba_message'] !== ''): ?>
-                                <div class="small text-secondary"><?= $e((string) $s['samba_message']) ?></div>
-                            <?php endif; ?>
+                            <div class="d-flex flex-column gap-1">
+                                <div>
+                                    <span class="badge <?= $couleur ?> me-1" title="Copie Réseau Samba">SMB: <?= $e(Backup::SAMBA_STATUTS[$statut] ?? $statut) ?></span>
+                                    <span class="badge <?= $couleurUsb ?>" title="Copie Clé USB / Disque externe">USB: <?= $e(Backup::USB_STATUTS[$usbStatut] ?? $usbStatut) ?></span>
+                                </div>
+                                <?php if ($statut === 'echec' && (string) $s['samba_message'] !== ''): ?>
+                                    <div class="small text-secondary"><?= $e((string) $s['samba_message']) ?></div>
+                                <?php endif; ?>
+                                <?php if ($usbStatut === 'echec' && (string) ($s['usb_message'] ?? '') !== ''): ?>
+                                    <div class="small text-danger"><?= $e((string) $s['usb_message']) ?></div>
+                                <?php endif; ?>
+                            </div>
                         </td>
                         <td class="cell-actions text-end">
                             <?php if ($present): ?>
                                 <a class="btn btn-sm"
                                    href="<?= $e($base_url . '/admin/sauvegardes/telecharger?fichier=' . urlencode($fichier)) ?>"
-                                   title="Télécharger l'archive">
+                                   title="Télécharger l'archive sur ce poste">
                                     <?= $icone('download') ?>
                                 </a>
+                                <form method="post" action="<?= $e($base_url . '/admin/sauvegardes/exporter-usb') ?>"
+                                      class="d-inline">
+                                    <?= Csrf::field() ?>
+                                    <input type="hidden" name="id" value="<?= (int) $s['id'] ?>">
+                                    <button type="submit" class="btn btn-sm" title="Copier cette archive vers la clé USB / répertoire externe">
+                                        <?= $icone('hard-drive') ?>
+                                    </button>
+                                </form>
                             <?php endif; ?>
                             <form method="post" action="<?= $e($base_url . '/admin/sauvegardes/supprimer') ?>"
                                   class="d-inline"

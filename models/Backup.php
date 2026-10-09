@@ -35,10 +35,19 @@ final class Backup
         'samba_utilisateur'          => '',
         'samba_mot_de_passe'         => '',
         'samba_domaine'              => '',
+        'sauvegarde_usb_actif'       => '0',
+        'sauvegarde_usb_dossier'     => '/media/usb',
     ];
 
     /** Verdict d'externalisation, dans l'ordre d'affichage. */
     public const SAMBA_STATUTS = [
+        'non_configure' => 'Non configuré',
+        'reussi'        => 'Copié',
+        'echec'         => 'Échec',
+    ];
+
+    /** Verdict de copie sur support externe / USB. */
+    public const USB_STATUTS = [
         'non_configure' => 'Non configuré',
         'reussi'        => 'Copié',
         'echec'         => 'Échec',
@@ -115,11 +124,19 @@ final class Backup
                 samba_statut      ENUM(\'non_configure\',\'reussi\',\'echec\') NOT NULL DEFAULT \'non_configure\',
                 samba_message     VARCHAR(255) NULL,
                 samba_at          DATETIME NULL,
+                usb_statut        ENUM(\'non_configure\',\'reussi\',\'echec\') NOT NULL DEFAULT \'non_configure\',
+                usb_message       VARCHAR(255) NULL,
+                usb_at            DATETIME NULL,
                 created_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (id),
                 UNIQUE KEY uq_sauvegardes_fichier (fichier),
                 KEY idx_sauvegardes_date (created_at)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
+
+            $cols = array_column(Database::all("SHOW COLUMNS FROM sauvegardes"), 'Field');
+            if (!in_array('usb_statut', $cols, true)) {
+                Database::run("ALTER TABLE sauvegardes ADD COLUMN usb_statut ENUM('non_configure','reussi','echec') NOT NULL DEFAULT 'non_configure' AFTER samba_at, ADD COLUMN usb_message VARCHAR(255) NULL AFTER usb_statut, ADD COLUMN usb_at DATETIME NULL AFTER usb_message");
+            }
         } catch (\PDOException $e) {
             Logger::error('Création de la table sauvegardes impossible', $e);
         }
@@ -158,11 +175,12 @@ final class Backup
     /**
      * Enregistre une archive et retourne son identifiant.
      *
-     * @param array{fichier: string, taille: int, empreinte: string, tables_dump: int, fichiers_inclus: int, samba_statut: string, samba_message: ?string, created_at?: ?string} $donnees
+     * @param array{fichier: string, taille: int, empreinte: string, tables_dump: int, fichiers_inclus: int, samba_statut: string, samba_message: ?string, created_at?: ?string, usb_statut?: string, usb_message?: ?string} $donnees
      */
     public static function enregistrer(array $donnees): int
     {
         self::assurerTable();
+        $usbStatut = $donnees['usb_statut'] ?? 'non_configure';
         $champs = [
             'fichier'         => $donnees['fichier'],
             'taille'          => $donnees['taille'],
@@ -172,6 +190,9 @@ final class Backup
             'samba_statut'    => $donnees['samba_statut'],
             'samba_message'   => $donnees['samba_message'],
             'samba_at'        => $donnees['samba_statut'] === 'non_configure' ? null : date('Y-m-d H:i:s'),
+            'usb_statut'      => $usbStatut,
+            'usb_message'     => $donnees['usb_message'] ?? null,
+            'usb_at'          => $usbStatut === 'non_configure' ? null : date('Y-m-d H:i:s'),
         ];
         if (!empty($donnees['created_at'])) {
             $champs['created_at'] = $donnees['created_at'];
@@ -180,13 +201,24 @@ final class Backup
         return Database::insert('sauvegardes', $champs);
     }
 
-    /** Complète le verdict d'externalisation d'une archive. */
+    /** Complète le verdict d'externalisation Samba d'une archive. */
     public static function majSamba(int $id, string $statut, ?string $message): void
     {
         Database::update('sauvegardes', $id, [
             'samba_statut'  => $statut,
             'samba_message' => $message === null ? null : mb_substr($message, 0, 255),
             'samba_at'      => date('Y-m-d H:i:s'),
+        ]);
+    }
+
+    /** Complète le verdict de copie sur support externe / USB d'une archive. */
+    public static function majUsb(int $id, string $statut, ?string $message): void
+    {
+        self::assurerTable();
+        Database::update('sauvegardes', $id, [
+            'usb_statut'  => $statut,
+            'usb_message' => $message === null ? null : mb_substr($message, 0, 255),
+            'usb_at'      => date('Y-m-d H:i:s'),
         ]);
     }
 

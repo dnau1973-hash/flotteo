@@ -117,6 +117,8 @@ $router->post('/admin/sauvegardes/lancer',     BackupController::class, 'lancer'
 $router->post('/admin/sauvegardes/purger',     BackupController::class, 'purger');
 $router->post('/admin/sauvegardes/supprimer',  BackupController::class, 'supprimer');
 $router->post('/admin/sauvegardes/tester',     BackupController::class, 'testerSamba');
+$router->post('/admin/sauvegardes/tester-usb', BackupController::class, 'testerUsb');
+$router->post('/admin/sauvegardes/exporter-usb', BackupController::class, 'exporterUsb');
 $router->post('/admin/sauvegardes/verifier',   BackupController::class, 'verifier');
 $router->get('/admin/sauvegardes/telecharger', BackupController::class, 'telecharger');
 
