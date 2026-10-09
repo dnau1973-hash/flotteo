@@ -232,7 +232,7 @@ $derniere        = $historique[0] ?? null;
             <?php endif; ?>
         </div>
     <div class="card-body border-top">
-        <h4 class="mb-3"><?= $icone('hard-drive', 'me-2') ?>Clé USB / Disque externe local</h4>
+        <h4 class="mb-3"><?= $icone('folder-open', 'me-2') ?>Clé USB / Disque externe local</h4>
         <div class="row g-3">
             <div class="col-md-6">
                 <label class="form-label">Support externe local</label>
@@ -282,7 +282,7 @@ $derniere        = $historique[0] ?? null;
         </button>
         <button type="button" class="btn btn-outline-secondary" id="bouton-test-usb"
                 data-url="<?= $e($base_url . '/admin/sauvegardes/tester-usb') ?>">
-            <?= $icone('hard-drive', 'me-2') ?>Tester le répertoire / clé USB
+            <?= $icone('folder-open', 'me-2') ?>Tester le répertoire / clé USB
         </button>
         <span class="text-secondary small">
             Les valeurs saisies sont éprouvées sans être enregistrées.
@@ -359,7 +359,7 @@ $derniere        = $historique[0] ?? null;
                                     <?= Csrf::field() ?>
                                     <input type="hidden" name="id" value="<?= (int) $s['id'] ?>">
                                     <button type="submit" class="btn btn-sm" title="Copier cette archive vers la clé USB / répertoire externe">
-                                        <?= $icone('hard-drive') ?>
+                                        <?= $icone('folder-open') ?>
                                     </button>
                                 </form>
                             <?php endif; ?>
