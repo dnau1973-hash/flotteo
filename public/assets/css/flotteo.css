@@ -686,3 +686,57 @@ a.document:hover {
     z-index: 1060 !important;
 }
 
+
+/* =============================================================================
+   Autocomplétion (select[data-autocomplete])
+   ========================================================================== */
+.autocomplete .form-control {
+    padding-right: 2.25rem;
+}
+
+.autocomplete-effacer {
+    position: absolute;
+    top: 50%;
+    right: .75rem;
+    transform: translateY(-50%);
+    width: .6rem;
+    height: .6rem;
+    padding: 0;
+    background-size: .6rem;
+    z-index: 3;
+}
+
+.autocomplete-menu {
+    max-height: 280px;
+    overflow-y: auto;
+    margin-top: 2px;
+    z-index: 1065;
+}
+
+.autocomplete-menu .dropdown-item {
+    white-space: normal;
+}
+
+.autocomplete-menu .dropdown-item.focus {
+    background-color: var(--tblr-active-bg, rgba(32, 107, 196, .06));
+}
+
+.autocomplete-menu mark {
+    padding: 0;
+    background-color: rgba(247, 103, 7, .2);
+    color: inherit;
+    font-weight: 600;
+}
+
+/* Le select natif reste focusable pour la validation HTML5, mais invisible. */
+.autocomplete-select {
+    position: absolute !important;
+    left: 0;
+    bottom: 0;
+    width: 100% !important;
+    height: 1px !important;
+    opacity: 0;
+    pointer-events: none;
+    padding: 0 !important;
+    border: 0 !important;
+}

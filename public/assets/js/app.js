@@ -380,9 +380,276 @@
     // Exécution immédiate au chargement du script
     initDatepickerFr();
 
+    // ---------------------------------------------------------------- Autocomplétion
+    /*
+     * Transforme un <select data-autocomplete> en champ de recherche avec liste
+     * filtrée. Le <select> d'origine reste dans le DOM (masqué visuellement) et
+     * demeure la source de vérité : c'est lui qui est soumis, validé (required)
+     * et pré-rempli par les scripts existants (`select.value = …`, form.reset()).
+     */
+    function normaliser(texte) {
+        return String(texte || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[\s\-_.]+/g, ' ')
+            .trim();
+    }
+
+    function echapperHtml(texte) {
+        return String(texte).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+    }
+
+    function initAutocompletion(select) {
+        if (select.dataset.autocompleteInit === '1') { return; }
+        select.dataset.autocompleteInit = '1';
+
+        var maxResultats = parseInt(select.getAttribute('data-autocomplete-max') || '50', 10);
+        var options = Array.prototype.filter.call(select.options, function (o) {
+            return o.value !== '';
+        }).map(function (o) {
+            var libelle = o.textContent.replace(/\s+/g, ' ').trim();
+            // L'immatriculation est aussi indexée sans tirets : « AB123CD » trouve « AB-123-CD ».
+            return { valeur: o.value, libelle: libelle, cle: normaliser(libelle) + ' ' + normaliser(libelle).replace(/ /g, '') };
+        });
+
+        var conteneur = document.createElement('div');
+        conteneur.className = 'autocomplete position-relative';
+
+        var champ = document.createElement('input');
+        champ.type = 'text';
+        champ.className = 'form-control';
+        champ.id = select.id ? select.id + '_recherche' : '';
+        champ.placeholder = select.getAttribute('data-autocomplete-placeholder') || 'Rechercher…';
+        champ.setAttribute('autocomplete', 'off');
+        champ.setAttribute('role', 'combobox');
+        champ.setAttribute('aria-autocomplete', 'list');
+        champ.setAttribute('aria-expanded', 'false');
+
+        var bouton = document.createElement('button');
+        bouton.type = 'button';
+        bouton.className = 'autocomplete-effacer btn-close';
+        bouton.setAttribute('aria-label', 'Effacer');
+        bouton.hidden = true;
+
+        var menu = document.createElement('div');
+        menu.className = 'dropdown-menu autocomplete-menu w-100';
+        menu.setAttribute('role', 'listbox');
+        if (champ.id) {
+            menu.id = champ.id + '_liste';
+            champ.setAttribute('aria-controls', menu.id);
+        }
+
+        select.parentNode.insertBefore(conteneur, select);
+        conteneur.appendChild(champ);
+        conteneur.appendChild(bouton);
+        conteneur.appendChild(menu);
+        conteneur.appendChild(select);
+        select.classList.add('autocomplete-select');
+        select.setAttribute('tabindex', '-1');
+        select.setAttribute('aria-hidden', 'true');
+
+        // Le label pointe désormais vers le champ de recherche.
+        if (select.id) {
+            var label = document.querySelector('label[for="' + select.id + '"]');
+            if (label) { label.setAttribute('for', champ.id); }
+        }
+
+        var resultats = [];
+        var indexActif = -1;
+
+        function libelleSelectionne() {
+            var o = select.options[select.selectedIndex];
+            return o && o.value !== '' ? o.textContent.replace(/\s+/g, ' ').trim() : '';
+        }
+
+        function synchroniserAffichage() {
+            champ.value = libelleSelectionne();
+            bouton.hidden = champ.value === '';
+            champ.classList.remove('is-invalid');
+        }
+
+        function fermer() {
+            menu.classList.remove('show');
+            champ.setAttribute('aria-expanded', 'false');
+            indexActif = -1;
+        }
+
+        function surligner(libelle, termes) {
+            var html = echapperHtml(libelle);
+            termes.forEach(function (t) {
+                if (t.length < 1) { return; }
+                // Surlignage insensible à la casse sur le texte brut (sans gestion des accents).
+                var motif = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                html = html.replace(new RegExp('(' + motif + ')(?![^<]*>)', 'ig'), '<mark>$1</mark>');
+            });
+            return html;
+        }
+
+        function afficher(requete) {
+            var termes = normaliser(requete).split(' ').filter(Boolean);
+            resultats = options.filter(function (o) {
+                return termes.every(function (t) { return o.cle.indexOf(t) !== -1; });
+            });
+
+            var total = resultats.length;
+            var visibles = resultats.slice(0, maxResultats);
+            menu.innerHTML = '';
+
+            if (total === 0) {
+                menu.innerHTML = '<span class="dropdown-item-text text-secondary">Aucun véhicule trouvé</span>';
+            } else {
+                visibles.forEach(function (o, i) {
+                    var item = document.createElement('a');
+                    item.href = '#';
+                    item.className = 'dropdown-item' + (o.valeur === select.value ? ' active' : '');
+                    item.setAttribute('role', 'option');
+                    item.setAttribute('data-index', String(i));
+                    item.innerHTML = surligner(o.libelle, requete.trim().split(/\s+/));
+                    menu.appendChild(item);
+                });
+                if (total > visibles.length) {
+                    var info = document.createElement('span');
+                    info.className = 'dropdown-item-text small text-secondary';
+                    info.textContent = (total - visibles.length) + ' autre(s) résultat(s) — affinez la recherche';
+                    menu.appendChild(info);
+                }
+            }
+
+            indexActif = -1;
+            menu.classList.add('show');
+            champ.setAttribute('aria-expanded', 'true');
+        }
+
+        function activer(index) {
+            var items = menu.querySelectorAll('.dropdown-item[data-index]');
+            if (!items.length) { return; }
+            indexActif = (index + items.length) % items.length;
+            items.forEach(function (el, i) { el.classList.toggle('focus', i === indexActif); });
+            items[indexActif].scrollIntoView({ block: 'nearest' });
+        }
+
+        function choisir(index) {
+            var o = resultats[index];
+            if (!o) { return; }
+            valeurNative.set.call(select, o.valeur);
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            synchroniserAffichage();
+            fermer();
+        }
+
+        // Interception des affectations programmatiques `select.value = …`
+        // (pré-remplissage des modales d'édition) pour rafraîchir le champ visible.
+        var valeurNative = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+        Object.defineProperty(select, 'value', {
+            configurable: true,
+            get: function () { return valeurNative.get.call(this); },
+            set: function (v) { valeurNative.set.call(this, v); synchroniserAffichage(); }
+        });
+
+        champ.addEventListener('input', function () {
+            bouton.hidden = champ.value === '';
+            afficher(champ.value);
+        });
+
+        champ.addEventListener('focus', function () {
+            champ.select();
+            afficher('');
+        });
+
+        champ.addEventListener('keydown', function (e) {
+            var ouvert = menu.classList.contains('show');
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (!ouvert) { afficher(champ.value === libelleSelectionne() ? '' : champ.value); }
+                activer(indexActif + 1);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                activer(indexActif - 1);
+            } else if (e.key === 'Enter') {
+                if (ouvert) {
+                    e.preventDefault();
+                    if (indexActif >= 0) {
+                        choisir(indexActif);
+                    } else if (resultats.length === 1) {
+                        choisir(0);
+                    }
+                }
+            } else if (e.key === 'Escape') {
+                if (ouvert) {
+                    // Ne pas fermer la modale : on ferme seulement la liste.
+                    e.preventDefault();
+                    e.stopPropagation();
+                    fermer();
+                    synchroniserAffichage();
+                }
+            } else if (e.key === 'Tab') {
+                fermer();
+            }
+        });
+
+        champ.addEventListener('blur', function () {
+            // Délai : laisse le clic sur un élément de la liste aboutir.
+            setTimeout(function () {
+                fermer();
+                synchroniserAffichage();
+            }, 150);
+        });
+
+        menu.addEventListener('mousedown', function (e) {
+            // Garde le focus sur le champ pendant le clic.
+            e.preventDefault();
+        });
+
+        menu.addEventListener('click', function (e) {
+            var item = e.target.closest('.dropdown-item[data-index]');
+            if (!item) { return; }
+            e.preventDefault();
+            choisir(parseInt(item.getAttribute('data-index'), 10));
+        });
+
+        bouton.addEventListener('click', function () {
+            valeurNative.set.call(select, '');
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            synchroniserAffichage();
+            champ.focus();
+        });
+
+        select.addEventListener('change', synchroniserAffichage);
+
+        // Validation HTML5 : le select masqué est requis, on signale l'erreur sur le champ visible.
+        select.addEventListener('invalid', function (e) {
+            e.preventDefault();
+            champ.classList.add('is-invalid');
+            champ.focus();
+        });
+
+        if (select.form) {
+            select.form.addEventListener('reset', function () {
+                setTimeout(synchroniserAffichage, 0);
+            });
+        }
+
+        // Pré-remplissage effectué avant l'ouverture d'une modale : resynchronisation à l'affichage.
+        var modale = select.closest('.modal');
+        if (modale) {
+            modale.addEventListener('shown.bs.modal', synchroniserAffichage);
+            modale.addEventListener('hide.bs.modal', fermer);
+        }
+
+        synchroniserAffichage();
+    }
+
+    function initAutocompletions() {
+        document.querySelectorAll('select[data-autocomplete]').forEach(initAutocompletion);
+    }
+
     // ---------------------------------------------------------------- Init
     document.addEventListener('DOMContentLoaded', function () {
         initDatepickerFr();
+        initAutocompletions();
         initConfirmation();
         initFormulairesConfirmes();
         initBoutonsSuppression();

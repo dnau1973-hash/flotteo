@@ -29,7 +29,8 @@ $e = static fn (?string $v): string => htmlspecialchars((string) $v, ENT_QUOTES,
                 <div class="row g-3">
                     <div class="col-12 col-md-6">
                         <label class="form-label required" for="e_vehicule">Véhicule</label>
-                        <select class="form-select" id="e_vehicule" name="vehicule_id" required>
+                        <select class="form-select" id="e_vehicule" name="vehicule_id" required
+                                data-autocomplete data-autocomplete-placeholder="Rechercher : immatriculation, marque, modèle…">
                             <option value="">— Sélectionner —</option>
                             <?php foreach ($vehicules as $v): ?>
                                 <option value="<?= (int) $v['id'] ?>" <?= (int) $vehicule_id === (int) $v['id'] ? 'selected' : '' ?>>
