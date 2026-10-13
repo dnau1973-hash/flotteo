@@ -257,8 +257,52 @@
         basculer();
     }
 
+    // ------------------------------------------------- Datepicker en français
+    /**
+     * Configure Tabler Datepicker en français :
+     * - Locale FR (mois et jours traduits)
+     * - Premier jour de la semaine = Lundi
+     * - Formatage ISO (YYYY-MM-DD) pour la conformité MySQL et les calculs automatiques
+     */
+    function initDatepickerFr() {
+        if (!window.tabler || !window.tabler.Datepicker) {
+            return;
+        }
+
+        var formatIso = function (date) {
+            var y = date.getFullYear();
+            var m = String(date.getMonth() + 1).padStart(2, '0');
+            var d = String(date.getDate()).padStart(2, '0');
+            return y + '-' + m + '-' + d;
+        };
+
+        var defauts = window.tabler.Datepicker.Default;
+        if (defauts) {
+            defauts.locale = 'fr';
+            defauts.firstWeekday = 1;
+            defauts.dateFormat = formatIso;
+        }
+
+        // Réinitialise avec les options FR les instances déjà montées par Tabler
+        document.querySelectorAll('[data-bs-toggle="datepicker"], [data-tblr-toggle="datepicker"]').forEach(function (el) {
+            var instance = window.tabler.Datepicker.getInstance(el);
+            if (instance) {
+                var valeur = el.value;
+                instance.dispose();
+                if (valeur) {
+                    el.value = valeur;
+                }
+                window.tabler.Datepicker.getOrCreateInstance(el);
+            }
+        });
+    }
+
+    // Exécution immédiate au chargement du script
+    initDatepickerFr();
+
     // ---------------------------------------------------------------- Init
     document.addEventListener('DOMContentLoaded', function () {
+        initDatepickerFr();
         initConfirmation();
         initFormulairesConfirmes();
         initBoutonsSuppression();
@@ -267,3 +311,4 @@
         hydraterFlash();
     });
 })();
+

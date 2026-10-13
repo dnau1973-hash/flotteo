@@ -49,6 +49,48 @@ $base = Url::base();
 <div class="toast-container position-fixed bottom-0 end-0 p-3" id="flotteo-toasts" aria-live="polite" aria-atomic="true"></div>
 
 <script src="<?= htmlspecialchars(Url::asset('tabler/libs/vanilla-calendar-pro/index.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
+<script>
+    /* Configuration globale VanillaCalendarPro en français */
+    if (window.VanillaCalendarPro && window.VanillaCalendarPro.Calendar) {
+        (function () {
+            var OrigCalendar = window.VanillaCalendarPro.Calendar;
+            var labelsFr = {
+                application: "Calendrier",
+                navigation: "Navigation dans le calendrier",
+                arrowNext: { month: "Mois suivant", year: "Année suivante", week: "Semaine suivante" },
+                arrowPrev: { month: "Mois précédent", year: "Année précédente", week: "Semaine précédente" },
+                month: "Sélectionner le mois, mois sélectionné :",
+                months: "Liste des mois",
+                year: "Sélectionner l'année, année sélectionnée :",
+                years: "Liste des années",
+                week: "Jours de la semaine",
+                weekNumber: "Numéros de semaine",
+                collapse: "Réduire à une semaine",
+                expand: "Agrandir au mois complet",
+                dates: "Dates du mois en cours"
+            };
+            window.VanillaCalendarPro.Calendar = class extends OrigCalendar {
+                constructor(el, options) {
+                    options = options || {};
+                    if (!options.locale || options.locale === 'default') {
+                        options.locale = 'fr';
+                    }
+                    if (options.firstWeekday === undefined) {
+                        options.firstWeekday = 1;
+                    }
+                    options.labels = Object.assign({}, labelsFr, options.labels || {});
+                    if (options.labels.arrowNext) {
+                        options.labels.arrowNext = Object.assign({}, labelsFr.arrowNext, options.labels.arrowNext);
+                    }
+                    if (options.labels.arrowPrev) {
+                        options.labels.arrowPrev = Object.assign({}, labelsFr.arrowPrev, options.labels.arrowPrev);
+                    }
+                    super(el, options);
+                }
+            };
+        })();
+    }
+</script>
 <script src="<?= htmlspecialchars(Url::asset('tabler/js/tabler.min.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(Url::asset('tabler/js/apexcharts.min.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
 <script>window.FLOTTEO = { base: <?= json_encode($base, JSON_UNESCAPED_SLASHES) ?>, token: <?= json_encode(Csrf::token(), JSON_UNESCAPED_SLASHES) ?> };</script>
