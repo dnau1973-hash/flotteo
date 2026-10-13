@@ -301,22 +301,15 @@ final class IncidentController extends Controller
             $this->refuserApercu();
         }
 
-        if (!Incident::estImage($fichier)) {
-            Flash::add('warning', 'Aperçu disponible uniquement pour les images.');
-            $this->redirect('/incidents/voir?id=' . (int) $fichier['incident_id']);
-        }
-
         $chemin = Upload::absolutePath(Incident::DOSSIER, (string) $fichier['nom_fichier']);
         if ($chemin === null) {
             $this->refuserApercu();
         }
 
         // Le type déclaré en base peut avoir été altéré : seul `finfo`, qui lit
-        // les octets, fait autorité. Un fichier dont le contenu ne correspond
-        // plus à une image raster est refusé sans message — une vignette
-        // cassée nuirait moins que l'affichage d'un contenu arbitraire.
+        // les octets, fait autorité.
         $mime = (new \finfo(FILEINFO_MIME_TYPE))->file($chemin);
-        if (!isset(Incident::MIMES_VIGNETTE[(string) $mime])) {
+        if (!isset(Incident::MIMES[(string) $mime])) {
             Logger::error("Apercu refuse: type reel $mime pour la piece #" . (int) $fichier['id']);
             http_response_code(415);
             header('Content-Type: text/plain; charset=utf-8');

@@ -18,6 +18,12 @@ $peutAjouterDocument = Auth::can(Auth::ROLE_DOCUMENTALISTE);
 $config = (require dirname(__DIR__, 2) . '/config/config.php');
 $tailleMax = round($config['securite']['taille_max_upload'] / 1048576);
 $isArchive = !empty($incident['deleted_at']);
+
+$poids = static function (int $octets): string {
+    return $octets < 1024
+        ? $octets . ' o'
+        : number_format($octets / 1024, 0, ',', ' ') . ' Ko';
+};
 ?>
 
 <?php if ($isArchive): ?>
@@ -155,60 +161,83 @@ $isArchive = !empty($incident['deleted_at']);
                 <?php else: ?>
                     <ul class="list-unstyled liste-fichiers">
                         <?php foreach ($fichiers as $f): ?>
-                            <?php $vignette = Incident::aVignette($f); ?>
+                            <?php
+                            $vignette    = Incident::aVignette($f);
+                            $pdf         = (string) $f['mime'] === 'application/pdf';
+                            $absente     = Incident::estImage($f) && !Incident::fichierPresent($f);
+                            $apercu      = $base_url . '/incidents/fichier/apercu?id=' . (int) $f['id'];
+                            $telecharger = $base_url . '/incidents/fichier/telecharger?id=' . (int) $f['id'];
+                            $disponible  = $vignette || ($pdf && Incident::fichierPresent($f));
+                            ?>
                             <li class="py-2">
                                 <div class="d-flex align-items-center">
                                     <?php if ($vignette): ?>
-                                        <!--
-                                            La vignette pointe vers l'action d'aperçu, qui
-                                            sert l'image en ligne ; `download()` force au
-                                            contraire `Content-Disposition: attachment`, et
-                                            un navigateur n'affiche rien depuis une réponse
-                                            d'attachement. La réponse est privée
-                                            (`private, no-store`) : elle ne doit pas
-                                            finir dans un cache partagé.
-                                        -->
-                                        <a class="vignette-fichier me-2"
-                                           href="<?= $e($base_url . '/incidents/fichier/apercu?id=' . (int) $f['id']) ?>"
-                                           target="_blank" rel="noopener"
-                                           title="Agrandir l'image dans un nouvel onglet">
-                                            <img src="<?= $e($base_url . '/incidents/fichier/apercu?id=' . (int) $f['id']) ?>"
+                                        <a class="vignette-fichier me-2 document"
+                                           href="<?= $e($apercu) ?>"
+                                           data-document="<?= $e($apercu) ?>"
+                                           data-nom="<?= $e((string) $f['nom_original']) ?>"
+                                           data-type="image"
+                                           data-mime="<?= $e(strtoupper((string) $f['mime'])) ?>"
+                                           data-taille="<?= $e($poids((int) $f['taille'])) ?>"
+                                           title="Ouvrir dans la visionneuse">
+                                            <img src="<?= $e($apercu) ?>"
                                                  alt="<?= $e((string) $f['nom_original']) ?>"
                                                  width="56" height="56" loading="lazy" decoding="async">
                                         </a>
                                     <?php else: ?>
-                                        <?php
-                                        /*
-                                         * Deux cas aboutissent ici, d'où un libellé
-                                         * calculé : un format sans vignette (le PDF n'en
-                                         * définit pas) et une image dont le fichier a
-                                         * disparu du stockage. Sans cette nuance, l'icône
-                                         * PDF s'afficherait sur une photographie manquante.
-                                         */
-                                        $pdf     = (string) $f['mime'] === 'application/pdf';
-                                        $absente = Incident::estImage($f) && !Incident::fichierPresent($f);
-                                        ?>
-                                        <span class="vignette-fichier vignette-fichier-icone me-2"
-                                              title="<?= $absente ? 'Fichier absent du stockage' : 'Aucun aperçu pour ce format' ?>"
-                                              aria-hidden="true">
-                                            <i class="fa-solid <?= $pdf ? 'fa-file-pdf' : 'fa-file-lines' ?>"></i>
-                                        </span>
+                                        <?php if ($pdf && Incident::fichierPresent($f)): ?>
+                                            <a class="vignette-fichier vignette-fichier-icone me-2 document text-decoration-none"
+                                               href="<?= $e($apercu) ?>"
+                                               data-document="<?= $e($apercu) ?>"
+                                               data-nom="<?= $e((string) $f['nom_original']) ?>"
+                                               data-type="pdf"
+                                               data-mime="PDF"
+                                               data-taille="<?= $e($poids((int) $f['taille'])) ?>"
+                                               title="Ouvrir dans la visionneuse">
+                                                <i class="fa-solid fa-file-pdf text-danger"></i>
+                                            </a>
+                                        <?php else: ?>
+                                            <span class="vignette-fichier vignette-fichier-icone me-2"
+                                                  title="<?= $absente ? 'Fichier absent du stockage' : 'Aucun aperçu pour ce format' ?>"
+                                                  aria-hidden="true">
+                                                <i class="fa-solid <?= $pdf ? 'fa-file-pdf' : 'fa-file-lines' ?>"></i>
+                                            </span>
+                                        <?php endif; ?>
                                     <?php endif; ?>
                                     <div class="flex-fill">
-                                        <a href="<?= $e($base_url . '/incidents/fichier/telecharger?id=' . (int) $f['id']) ?>"
-                                           class="text-reset d-block text-truncate"><?= $e((string) $f['nom_original']) ?></a>
+                                        <?php if ($disponible): ?>
+                                            <a href="<?= $e($apercu) ?>"
+                                               class="text-reset d-block text-truncate document"
+                                               data-document="<?= $e($apercu) ?>"
+                                               data-nom="<?= $e((string) $f['nom_original']) ?>"
+                                               data-type="<?= $pdf ? 'pdf' : 'image' ?>"
+                                               data-mime="<?= $e(strtoupper((string) $f['mime'])) ?>"
+                                               data-taille="<?= $e($poids((int) $f['taille'])) ?>"
+                                               title="Ouvrir dans la visionneuse"><?= $e((string) $f['nom_original']) ?></a>
+                                        <?php else: ?>
+                                            <span class="d-block text-truncate text-secondary"
+                                                  title="<?= $absente ? 'Fichier absent du stockage' : '' ?>">
+                                                <?= $e((string) $f['nom_original']) ?>
+                                            </span>
+                                        <?php endif; ?>
                                         <div class="small text-secondary">
                                             <?= $e(strtoupper((string) $f['mime'])) ?>
-                                            &middot; <?= $e(number_format((int) $f['taille'] / 1024, 0, ',', ' ')) ?> Ko
+                                            &middot; <?= $e($poids((int) $f['taille'])) ?>
                                             &middot; <?= $e((string) $f['created_at']) ?>
                                         </div>
                                     </div>
+                                    <a class="btn btn-sm btn-icon btn-outline-secondary ms-2"
+                                       href="<?= $e($telecharger) ?>"
+                                       title="Télécharger le fichier">
+                                        <i class="fa-solid fa-download" aria-hidden="true"></i>
+                                        <span class="visually-hidden">Télécharger <?= $e((string) $f['nom_original']) ?></span>
+                                    </a>
                                     <?php if ($modifiable): ?>
                                         <form method="post" action="<?= $e($base_url . '/incidents/fichier/supprimer') ?>"
                                               data-confirmer="Supprimer définitivement la pièce jointe ?">
                                             <?= Csrf::field() ?>
                                             <input type="hidden" name="id" value="<?= (int) $f['id'] ?>">
-                                            <button type="submit" class="btn btn-sm text-danger" title="Supprimer la pièce">
+                                            <button type="submit" class="btn btn-sm btn-icon btn-outline-danger ms-1" title="Supprimer la pièce">
                                                 <svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none"
                                                      stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
                                                      stroke-linejoin="round" aria-hidden="true">
@@ -243,6 +272,36 @@ $isArchive = !empty($incident['deleted_at']);
     </div>
 </div>
 
+<!-- Modale de visionneuse de document -->
+<div class="modal modal-blur fade" id="modal-document" tabindex="-1" role="dialog" aria-hidden="true"
+     aria-labelledby="titre-document">
+    <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="titre-document">Document</h5>
+                <div class="modal-actions">
+                    <a class="btn btn-sm btn-outline-primary" id="document-telecharger" href="#" download>
+                        <i class="fa-solid fa-download me-1" aria-hidden="true"></i>
+                        Télécharger
+                    </a>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                </div>
+            </div>
+            <div class="modal-body p-0">
+                <div class="visionneuse" id="visionneuse-support">
+                    <img class="visionneuse-image" id="visionneuse-image" alt="" src="" hidden>
+                    <iframe class="visionneuse-pdf" id="visionneuse-pdf" title="Visionneuse PDF"
+                            src="about:blank" hidden></iframe>
+                </div>
+            </div>
+            <div class="modal-footer justify-content-between">
+                <div class="small text-secondary" id="document-meta"></div>
+                <button type="button" class="btn btn-link link-secondary" data-bs-dismiss="modal">Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <?php if ($modifiable): ?>
     <?php $this->partial('incidents/_formulaire', [
         'base_url'   => $base_url,
@@ -251,24 +310,97 @@ $isArchive = !empty($incident['deleted_at']);
         'statuts'    => $statuts,
         'vehicule_id' => (int) $incident['vehicule_id'],
     ]); ?>
-
-    <script>
-        /* Pré-remplissage de la modale d'édition avec l'incident courant. */
-        document.addEventListener('DOMContentLoaded', function () {
-            var element = document.getElementById('modal-incident');
-            if (!element) { return; }
-            element.addEventListener('show.bs.modal', function () {
-                document.getElementById('incident-id').value = '<?= (int) $incident['id'] ?>';
-                document.getElementById('titre-incident').textContent = 'Modifier l\'incident';
-                document.getElementById('i_v_vehicule').value = '<?= (int) $incident['vehicule_id'] ?>';
-                document.getElementById('i_v_type').value = <?= json_encode((string) $incident['type']) ?>;
-                document.getElementById('i_v_date').value = <?= json_encode((string) $incident['date_incident']) ?>;
-                document.getElementById('i_v_lieu').value = <?= json_encode((string) $incident['lieu']) ?>;
-                document.getElementById('i_v_statut').value = <?= json_encode((string) $incident['statut']) ?>;
-                document.getElementById('i_v_resp').checked = <?= (int) $incident['responsable'] === 1 ? 'true' : 'false' ?>;
-                document.getElementById('i_v_immat').checked = <?= (int) $incident['immatricule'] === 1 ? 'true' : 'false' ?>;
-                document.getElementById('i_v_description').value = <?= json_encode((string) $incident['description']) ?>;
-            });
-        });
-    </script>
 <?php endif; ?>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        /* Visionneuse de document */
+        var modale = document.getElementById('modal-document');
+        if (modale) {
+            var image = document.getElementById('visionneuse-image');
+            var cadre = document.getElementById('visionneuse-pdf');
+            var titre = document.getElementById('titre-document');
+            var meta  = document.getElementById('document-meta');
+            var lien  = document.getElementById('document-telecharger');
+
+            modale.addEventListener('show.bs.modal', function (evenement) {
+                var declencheur = evenement.relatedTarget;
+                if (!declencheur || !declencheur.hasAttribute('data-document')) { return; }
+
+                var url  = declencheur.getAttribute('data-document');
+                var type = declencheur.getAttribute('data-type');
+
+                titre.textContent = declencheur.getAttribute('data-nom') || 'Document';
+
+                var parties = [];
+                if (declencheur.getAttribute('data-mime')) {
+                    parties.push(declencheur.getAttribute('data-mime'));
+                }
+                if (declencheur.getAttribute('data-taille')) {
+                    parties.push(declencheur.getAttribute('data-taille'));
+                }
+                meta.textContent = parties.join(' · ');
+
+                lien.setAttribute('href', url.replace('/apercu?', '/telecharger?'));
+
+                if (type === 'pdf') {
+                    image.hidden = true;
+                    image.removeAttribute('src');
+                    cadre.hidden = false;
+                    cadre.setAttribute('src', url);
+                    return;
+                }
+
+                cadre.hidden = true;
+                cadre.setAttribute('src', 'about:blank');
+                image.hidden = false;
+                image.setAttribute('src', url);
+                image.setAttribute('alt', titre.textContent);
+            });
+
+            modale.addEventListener('hidden.bs.modal', function () {
+                image.hidden = true;
+                image.removeAttribute('src');
+                cadre.hidden = true;
+                cadre.setAttribute('src', 'about:blank');
+            });
+
+            document.querySelectorAll('[data-document]').forEach(function (el) {
+                el.addEventListener('click', function (evenement) {
+                    if (evenement.ctrlKey || evenement.metaKey || evenement.shiftKey || evenement.button !== 0) {
+                        return;
+                    }
+                    evenement.preventDefault();
+                    bootstrap.Modal.getOrCreateInstance(modale).show(evenement.currentTarget);
+                });
+            });
+        }
+
+        /* Pré-remplissage de la modale d'édition avec l'incident courant */
+        var modalIncident = document.getElementById('modal-incident');
+        if (modalIncident) {
+            modalIncident.addEventListener('show.bs.modal', function () {
+                var idElem = document.getElementById('incident-id');
+                if (idElem) idElem.value = '<?= (int) $incident['id'] ?>';
+                var titreElem = document.getElementById('titre-incident');
+                if (titreElem) titreElem.textContent = 'Modifier l\'incident';
+                var vElem = document.getElementById('i_v_vehicule');
+                if (vElem) vElem.value = '<?= (int) $incident['vehicule_id'] ?>';
+                var tElem = document.getElementById('i_v_type');
+                if (tElem) tElem.value = <?= json_encode((string) $incident['type']) ?>;
+                var dElem = document.getElementById('i_v_date');
+                if (dElem) dElem.value = <?= json_encode((string) $incident['date_incident']) ?>;
+                var lElem = document.getElementById('i_v_lieu');
+                if (lElem) lElem.value = <?= json_encode((string) $incident['lieu']) ?>;
+                var sElem = document.getElementById('i_v_statut');
+                if (sElem) sElem.value = <?= json_encode((string) $incident['statut']) ?>;
+                var rElem = document.getElementById('i_v_resp');
+                if (rElem) rElem.checked = <?= (int) $incident['responsable'] === 1 ? 'true' : 'false' ?>;
+                var imElem = document.getElementById('i_v_immat');
+                if (imElem) imElem.checked = <?= (int) $incident['immatricule'] === 1 ? 'true' : 'false' ?>;
+                var descElem = document.getElementById('i_v_description');
+                if (descElem) descElem.value = <?= json_encode((string) $incident['description']) ?>;
+            });
+        }
+    });
+</script>

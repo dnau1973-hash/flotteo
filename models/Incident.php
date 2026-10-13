@@ -30,6 +30,16 @@ final class Incident
     public const DOSSIER = 'incidents';
 
     /**
+     * Types de pièces jointes autorisés pour l'aperçu et le téléversement.
+     */
+    public const MIMES = [
+        'application/pdf' => 'pdf',
+        'image/jpeg'      => 'jpg',
+        'image/png'       => 'png',
+        'image/webp'      => 'webp',
+    ];
+
+    /**
      * Types de pièces jointes présentables en vignette.
      *
      * Uniquement des images matricielles : ce sont les seules pièces jointes
