@@ -37,7 +37,7 @@ final class Icon
          'file-pdf', 'boxes', 'tag', 'arrow-right-arrow-left',
          // Module de sauvegarde : conditionnement, partage réseau, disque, retour en haut.
          'box-archive', 'network-wired', 'folder-open', 'download', 'server',
-         'circle-check', 'clock', 'arrow-up',
+         'circle-check', 'clock', 'arrow-up', 'clock-rotate-left',
          // Familles « brands ».
          'github', 'slack',
      ];
