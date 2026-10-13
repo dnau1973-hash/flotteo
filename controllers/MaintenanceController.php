@@ -80,6 +80,8 @@ final class MaintenanceController extends Controller
             $this->repondreErreurs($erreurs);
         }
 
+        $creation = $id === 0;
+
         try {
             $vehicule = Vehicle::find((int) $payload['vehicule_id']);
             $immat    = $vehicule['immatriculation'] ?? null;
@@ -110,6 +112,11 @@ final class MaintenanceController extends Controller
         } catch (\PDOException $e) {
             Logger::error('Enregistrement entretien impossible', $e);
             $this->repondreErreurs(['Enregistrement impossible : vérifiez les données saisies.']);
+        }
+
+        // Nouvelle prestation : ouverture de la fiche du véhicule concerné.
+        if ($creation && $vehicule !== null) {
+            $this->redirect('/vehicules/voir?id=' . (int) $payload['vehicule_id']);
         }
 
         $this->redirect('/entretien');

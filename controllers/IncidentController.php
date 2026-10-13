@@ -81,6 +81,8 @@ final class IncidentController extends Controller
             $this->repondreErreurs($erreurs, $id);
         }
 
+        $creation = $id === 0;
+
         try {
             $vehicule = Vehicle::find((int) $payload['vehicule_id']);
             $immat    = $vehicule['immatriculation'] ?? null;
@@ -111,6 +113,11 @@ final class IncidentController extends Controller
         } catch (\PDOException $e) {
             Logger::error('Enregistrement incident impossible', $e);
             $this->repondreErreurs(['Enregistrement impossible : vérifiez les données saisies.'], $id);
+        }
+
+        // Nouvel incident : ouverture de la fiche du véhicule concerné.
+        if ($creation && $vehicule !== null) {
+            $this->redirect('/vehicules/voir?id=' . (int) $payload['vehicule_id']);
         }
 
         $this->redirect('/incidents/voir?id=' . $id);
