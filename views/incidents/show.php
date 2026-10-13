@@ -65,7 +65,7 @@ $poids = static function (int $octets): string {
     <div class="col-lg-7">
         <div class="card">
             <div class="card-header">
-                <h3 class="card-title">Incident <?= $e((string) $incident['date_incident']) ?></h3>
+                <h3 class="card-title">Incident du <?= !empty($incident['date_incident']) ? date('d-m-Y', strtotime((string) $incident['date_incident'])) : '—' ?></h3>
                 <div class="card-actions">
                     <span class="badge <?= $incident['statut'] === 'cloture' ? 'bg-green-lt' : ($incident['statut'] === 'en_traitement' ? 'bg-orange-lt' : 'bg-red-lt') ?> badge-statut">
                         <?= $e(Incident::STATUTS[(string) $incident['statut']] ?? (string) $incident['statut']) ?>
@@ -77,6 +77,10 @@ $poids = static function (int $octets): string {
             </div>
             <div class="card-body">
                 <div class="datagrid mb-3">
+                    <div class="datagrid-item">
+                        <div class="datagrid-title">Date de l'incident</div>
+                        <div class="datagrid-content"><?= !empty($incident['date_incident']) ? date('d-m-Y', strtotime((string) $incident['date_incident'])) : '—' ?></div>
+                    </div>
                     <div class="datagrid-item">
                         <div class="datagrid-title">Véhicule</div>
                         <div class="datagrid-content">
@@ -389,7 +393,7 @@ $poids = static function (int $octets): string {
                 var tElem = document.getElementById('i_v_type');
                 if (tElem) tElem.value = <?= json_encode((string) $incident['type']) ?>;
                 var dElem = document.getElementById('i_v_date');
-                if (dElem) dElem.value = <?= json_encode((string) $incident['date_incident']) ?>;
+                if (dElem) dElem.value = <?= json_encode(!empty($incident['date_incident']) ? date('d-m-Y', strtotime((string) $incident['date_incident'])) : '') ?>;
                 var lElem = document.getElementById('i_v_lieu');
                 if (lElem) lElem.value = <?= json_encode((string) $incident['lieu']) ?>;
                 var sElem = document.getElementById('i_v_statut');

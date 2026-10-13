@@ -366,6 +366,20 @@ function choisirCouleur(nom) {
     }
 }
 
+function extrairePartiesDate(val) {
+    if (!val || typeof val !== 'string') return null;
+    val = val.trim();
+    let m = val.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (m) {
+        return { annee: parseInt(m[1], 10), mois: parseInt(m[2], 10), jour: parseInt(m[3], 10), formatFr: false };
+    }
+    m = val.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+    if (m) {
+        return { annee: parseInt(m[3], 10), mois: parseInt(m[2], 10), jour: parseInt(m[1], 10), formatFr: true };
+    }
+    return null;
+}
+
 function calculerDateSortiePrevue() {
     const dureeContrat = document.getElementById('v_duree_contrat');
     const dateEntree = document.getElementById('v_entree');
@@ -374,13 +388,13 @@ function calculerDateSortiePrevue() {
     if (!dureeContrat || !dateEntree || !dateSortiePrevue) return;
     
     const duree = parseInt(dureeContrat.value, 10);
-    const dateEntreeVal = dateEntree.value; // Format: YYYY-MM-DD
+    const dateEntreeVal = dateEntree.value;
+    const parts = extrairePartiesDate(dateEntreeVal);
     
-    if (!isNaN(duree) && duree > 0 && /^\d{4}-\d{2}-\d{2}$/.test(dateEntreeVal)) {
-        const [anneeStr, moisStr, jourStr] = dateEntreeVal.split('-');
-        let annee = parseInt(anneeStr, 10);
-        let mois = parseInt(moisStr, 10); // 1 - 12
-        let jour = parseInt(jourStr, 10);
+    if (!isNaN(duree) && duree > 0 && parts) {
+        let annee = parts.annee;
+        let mois = parts.mois;
+        let jour = parts.jour;
 
         // Ajout des mois
         const totalMois = mois + duree;
@@ -395,7 +409,9 @@ function calculerDateSortiePrevue() {
 
         const moisFormate = String(mois).padStart(2, '0');
         const jourFormate = String(jour).padStart(2, '0');
-        dateSortiePrevue.value = `${annee}-${moisFormate}-${jourFormate}`;
+        dateSortiePrevue.value = parts.formatFr
+            ? `${jourFormate}-${moisFormate}-${annee}`
+            : `${annee}-${moisFormate}-${jourFormate}`;
     }
 }
 
@@ -407,13 +423,13 @@ function calculerDateProchainControleHayon() {
     if (!tempsControle || !dateDernier || !dateProchain) return;
 
     const moisAjout = parseInt(tempsControle.value, 10);
-    const dateDernierVal = dateDernier.value; // Format: YYYY-MM-DD
+    const dateDernierVal = dateDernier.value;
+    const parts = extrairePartiesDate(dateDernierVal);
 
-    if (!isNaN(moisAjout) && moisAjout > 0 && /^\d{4}-\d{2}-\d{2}$/.test(dateDernierVal)) {
-        const [anneeStr, moisStr, jourStr] = dateDernierVal.split('-');
-        let annee = parseInt(anneeStr, 10);
-        let mois = parseInt(moisStr, 10);
-        let jour = parseInt(jourStr, 10);
+    if (!isNaN(moisAjout) && moisAjout > 0 && parts) {
+        let annee = parts.annee;
+        let mois = parts.mois;
+        let jour = parts.jour;
 
         const totalMois = mois + moisAjout;
         annee += Math.floor((totalMois - 1) / 12);
@@ -426,7 +442,9 @@ function calculerDateProchainControleHayon() {
 
         const moisFormate = String(mois).padStart(2, '0');
         const jourFormate = String(jour).padStart(2, '0');
-        dateProchain.value = `${annee}-${moisFormate}-${jourFormate}`;
+        dateProchain.value = parts.formatFr
+            ? `${jourFormate}-${moisFormate}-${annee}`
+            : `${annee}-${moisFormate}-${jourFormate}`;
     }
 }
 

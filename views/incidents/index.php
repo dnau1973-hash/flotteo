@@ -95,7 +95,7 @@ $modifiable = Auth::can(Auth::ROLE_MODIFICATION);
                 <?php foreach ($incidents as $i): ?>
                     <?php $nbFichiers = count(\Models\Incident::files((int) $i['id'])); ?>
                     <tr>
-                        <td class="text-nowrap"><?= $e((string) $i['date_incident']) ?></td>
+                        <td class="text-nowrap"><?= !empty($i['date_incident']) ? date('d-m-Y', strtotime((string) $i['date_incident'])) : '—' ?></td>
                         <td>
                             <a href="<?= $e($base_url . '/vehicules/voir?id=' . (int) $i['vehicule_id']) ?>" class="text-reset fw-bold">
                                 <?= $e($i['immatriculation']) ?>

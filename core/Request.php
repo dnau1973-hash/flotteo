@@ -55,11 +55,20 @@ final class Request
         return is_numeric($val) ? (float) $val : $defaut;
     }
 
-    /** Valeur de date au format Y-m-d ou chaîne vide. */
+    /** Valeur de date au format Y-m-d ou chaîne vide. Accepte YYYY-MM-DD, DD-MM-YYYY, DD/MM/YYYY. */
     public static function date(string $cle, string $defaut = ''): string
     {
-        $val = (string) self::input($cle, $defaut);
-        return preg_match('/^\d{4}-\d{2}-\d{2}$/', $val) === 1 ? $val : '';
+        $val = trim((string) self::input($cle, $defaut));
+        if ($val === '') {
+            return '';
+        }
+        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $val, $m)) {
+            return checkdate((int) $m[2], (int) $m[3], (int) $m[1]) ? sprintf('%04d-%02d-%02d', (int) $m[1], (int) $m[2], (int) $m[3]) : '';
+        }
+        if (preg_match('/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/', $val, $m)) {
+            return checkdate((int) $m[2], (int) $m[1], (int) $m[3]) ? sprintf('%04d-%02d-%02d', (int) $m[3], (int) $m[2], (int) $m[1]) : '';
+        }
+        return '';
     }
 
     public static function isJson(): bool

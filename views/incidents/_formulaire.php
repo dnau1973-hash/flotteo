@@ -58,7 +58,7 @@ $e = static fn (?string $v): string => htmlspecialchars((string) $v, ENT_QUOTES,
                                 </svg>
                             </span>
                             <input type="text" class="form-control" id="i_v_date" name="date_incident" required
-                                   placeholder="YYYY-MM-DD" autocomplete="off" data-bs-toggle="datepicker">
+                                   placeholder="DD-MM-YYYY" autocomplete="off" data-bs-toggle="datepicker">
                         </div>
                     </div>
 

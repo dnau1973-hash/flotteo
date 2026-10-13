@@ -262,40 +262,120 @@
      * Configure Tabler Datepicker en français :
      * - Locale FR (mois et jours traduits)
      * - Premier jour de la semaine = Lundi
-     * - Formatage ISO (YYYY-MM-DD) pour la conformité MySQL et les calculs automatiques
+     * - Formatage français (DD-MM-YYYY)
+     * - Protection contre le FocusTrap des modales Bootstrap pour garantir les clics sur les dates
      */
     function initDatepickerFr() {
         if (!window.tabler || !window.tabler.Datepicker) {
             return;
         }
 
-        var formatIso = function (date) {
+        var proto = window.tabler.Datepicker.prototype;
+
+        // Analyse flexible des dates (ISO YYYY-MM-DD ou FR DD-MM-YYYY / DD/MM/YYYY)
+        proto._parseDate = function (val) {
+            if (!val || typeof val !== 'string') return new Date();
+            val = val.trim();
+            var mIso = val.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+            if (mIso) {
+                return new Date(parseInt(mIso[1], 10), parseInt(mIso[2], 10) - 1, parseInt(mIso[3], 10));
+            }
+            var mFr = val.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+            if (mFr) {
+                return new Date(parseInt(mFr[3], 10), parseInt(mFr[2], 10) - 1, parseInt(mFr[1], 10));
+            }
+            var d = new Date(val);
+            return isNaN(d.getTime()) ? new Date() : d;
+        };
+
+        // Conversion en ISO standard YYYY-MM-DD pour VanillaCalendarPro
+        proto._toIsoDate = function (val) {
+            if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+            var d = val instanceof Date ? val : this._parseDate(val);
+            if (!d || isNaN(d.getTime())) return String(val);
+            var y = d.getFullYear();
+            var m = String(d.getMonth() + 1).padStart(2, '0');
+            var j = String(d.getDate()).padStart(2, '0');
+            return y + '-' + m + '-' + j;
+        };
+
+        // Lecture de la valeur de l'input et synchronisation du calendrier
+        proto._parseInputValue = function () {
+            var val = this._element && this._element.value ? this._element.value.trim() : '';
+            if (!val) return;
+            var parsed = this._parseDate(val);
+            if (!parsed || isNaN(parsed.getTime())) return;
+            var iso = this._toIsoDate(parsed);
+            this._selectedDates = [iso];
+            if (this._calendar) {
+                this._calendar.set({
+                    selectedDates: this._selectedDates,
+                    selectedMonth: parsed.getMonth(),
+                    selectedYear: parsed.getFullYear()
+                });
+            }
+        };
+
+        // Écriture de la sélection dans l'input avec déclenchement des événements natifs
+        proto._writeSelection = function (t) {
+            var formatted = this._formatDateForInput(t);
+            if (this._isInput) {
+                this._element.value = formatted;
+                this._element.dispatchEvent(new Event('input', { bubbles: true }));
+                this._element.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            if (this._boundInput) {
+                this._boundInput.value = t.join(',');
+            }
+            if (this._displayElement) {
+                this._displayElement.textContent = formatted;
+            }
+        };
+
+        // Format DD-MM-YYYY pour les formulaires français
+        var formatFr = function (date) {
             var y = date.getFullYear();
             var m = String(date.getMonth() + 1).padStart(2, '0');
             var d = String(date.getDate()).padStart(2, '0');
-            return y + '-' + m + '-' + d;
+            return d + '-' + m + '-' + y;
         };
 
         var defauts = window.tabler.Datepicker.Default;
         if (defauts) {
             defauts.locale = 'fr';
             defauts.firstWeekday = 1;
-            defauts.dateFormat = formatIso;
+            defauts.dateFormat = formatFr;
         }
 
-        // Réinitialise avec les options FR les instances déjà montées par Tabler
+        // Met à jour les instances déjà créées sans les détruire
         document.querySelectorAll('[data-bs-toggle="datepicker"], [data-tblr-toggle="datepicker"]').forEach(function (el) {
             var instance = window.tabler.Datepicker.getInstance(el);
             if (instance) {
-                var valeur = el.value;
-                instance.dispose();
-                if (valeur) {
-                    el.value = valeur;
-                }
-                window.tabler.Datepicker.getOrCreateInstance(el);
+                instance._config.locale = 'fr';
+                instance._config.firstWeekday = 1;
+                instance._config.dateFormat = formatFr;
+                instance._parseInputValue();
             }
         });
     }
+
+    // Protection des clics dans les modales Bootstrap :
+    // Le FocusTrap de Bootstrap écoute sur document en phase de bouillonnement et vole
+    // le focus dès qu'on clique sur un élément hors de la modale (.vc est dans body).
+    // Ces écouteurs en phase de capture maintiennent le focus sur l'input et autorisent le clic.
+    document.addEventListener('focusin', function (e) {
+        if (e.target && e.target.closest && e.target.closest('[data-vc="calendar"], .vc-calendar, .vc')) {
+            e.stopImmediatePropagation();
+        }
+    }, true);
+
+    document.addEventListener('mousedown', function (e) {
+        if (e.target && e.target.closest && e.target.closest('[data-vc="calendar"], .vc-calendar, .vc')) {
+            if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+            }
+        }
+    }, true);
 
     // Exécution immédiate au chargement du script
     initDatepickerFr();

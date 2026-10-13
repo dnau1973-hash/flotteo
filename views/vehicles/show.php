@@ -500,7 +500,7 @@ $liens = [
                         <tbody>
                         <?php foreach ($incidents as $i): ?>
                             <tr>
-                                <td><?= $e((string) $i['date_incident']) ?></td>
+                                <td><?= !empty($i['date_incident']) ? date('d-m-Y', strtotime((string) $i['date_incident'])) : '—' ?></td>
                                 <td><?= $e(Incident::TYPES[(string) $i['type']] ?? (string) $i['type']) ?></td>
                                 <td class="text-secondary"><?= $e((string) ($i['lieu'] ?: '—')) ?></td>
                                 <td>
