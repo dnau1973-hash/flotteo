@@ -27,6 +27,16 @@ final class Request
         return strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
     }
 
+    public static function ip(): string
+    {
+        $raw = (string) ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1');
+        // Si plusieurs adresses transmises par proxy, prendre la première
+        if (str_contains($raw, ',')) {
+            $raw = trim(explode(',', $raw)[0]);
+        }
+        return $raw;
+    }
+
     public static function input(string $cle, mixed $defaut = null): mixed
     {
         $valeur = $_POST[$cle] ?? $_GET[$cle] ?? $defaut;

@@ -79,6 +79,7 @@ $modules = [
     ['cle' => 'referentiels', 'url' => '/admin/dictionnaires', 'libelle' => 'Référentiels',    'icone' => 'list',                  'role' => 'admin'],
     ['cle' => 'parametres', 'url' => '/admin/parametres',  'libelle' => 'Paramètres',          'icone' => 'sliders',              'role' => 'admin'],
     ['cle' => 'utilisateurs', 'url' => '/admin/utilisateurs', 'libelle' => 'Utilisateurs',      'icone' => 'users',                'role' => 'admin'],
+    ['cle' => 'journal',     'url' => '/admin/journal',       'libelle' => 'Journal d\'audit',  'icone' => 'clock-rotate-left',    'role' => 'admin'],
 ];
 
 /** Les entrées réellement accessibles à l'utilisateur connecté. */

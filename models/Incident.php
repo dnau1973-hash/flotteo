@@ -58,13 +58,25 @@ final class Incident
 
     public static function find(int $id): ?array
     {
-        return Database::one(self::SELECT_BASE . ' WHERE i.id = :id', ['id' => $id]);
+        SoftDeleteMigration::run();
+        $i = Database::one(self::SELECT_BASE . ' WHERE i.id = :id', ['id' => $id]);
+        if ($i !== null && $i['deleted_at'] !== null && !\Core\Auth::can(\Core\Auth::ROLE_ADMIN)) {
+            return null;
+        }
+        return $i;
     }
 
     public static function search(array $filtres = []): array
     {
+        SoftDeleteMigration::run();
         $where  = [];
         $params = [];
+
+        $isAdmin = \Core\Auth::can(\Core\Auth::ROLE_ADMIN);
+        $avecArchives = !empty($filtres['avec_archives']) && (string) $filtres['avec_archives'] === '1';
+        if (!$isAdmin || !$avecArchives) {
+            $where[] = 'i.deleted_at IS NULL';
+        }
 
         if (!empty($filtres['vehicule_id'])) {
             $where[] = 'i.vehicule_id = :v';
@@ -103,11 +115,12 @@ final class Incident
     public static function filtersFromRequest(): array
     {
         return [
-            'vehicule_id' => Request::int('vehicule_id'),
-            'type'        => (string) Request::input('type', ''),
-            'statut'      => (string) Request::input('statut', ''),
-            'du'          => Request::date('du'),
-            'au'          => Request::date('au'),
+            'vehicule_id'   => Request::int('vehicule_id'),
+            'type'          => (string) Request::input('type', ''),
+            'statut'        => (string) Request::input('statut', ''),
+            'du'            => Request::date('du'),
+            'au'            => Request::date('au'),
+            'avec_archives' => (string) Request::input('avec_archives', '0'),
         ];
     }
 
@@ -149,12 +162,41 @@ final class Incident
         return Database::update('incidents', $id, $d);
     }
 
-    public static function delete(int $id): int
+    /**
+     * Suppression logique (soft delete) : masqué pour les non-admins,
+     * conserve les photos et rapports de sinistre.
+     */
+    public static function softDelete(int $id): int
     {
+        SoftDeleteMigration::run();
+        return Database::update('incidents', $id, ['deleted_at' => date('Y-m-d H:i:s')]);
+    }
+
+    /**
+     * Restauration d'un incident archivé (admin).
+     */
+    public static function restore(int $id): int
+    {
+        SoftDeleteMigration::run();
+        return Database::update('incidents', $id, ['deleted_at' => null]);
+    }
+
+    /**
+     * Suppression définitive et suppression physique des pièces jointes (admin).
+     */
+    public static function forceDelete(int $id): int
+    {
+        SoftDeleteMigration::run();
         foreach (self::files($id) as $f) {
             Upload::remove(self::DOSSIER, (string) $f['nom_fichier']);
         }
         return Database::delete('incidents', $id);
+    }
+
+    /** Alias rétro-compatible de softDelete. */
+    public static function delete(int $id): int
+    {
+        return self::softDelete($id);
     }
 
     // --- Pièces jointes -----------------------------------------------------

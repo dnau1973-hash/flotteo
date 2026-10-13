@@ -14,6 +14,7 @@
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
+DROP TABLE IF EXISTS journal_audit;
 DROP TABLE IF EXISTS releves_odometre;
 DROP TABLE IF EXISTS sauvegardes;
 DROP TABLE IF EXISTS incidents_fichiers;
@@ -37,7 +38,7 @@ CREATE TABLE utilisateurs (
     nom           VARCHAR(120) NOT NULL,
     email         VARCHAR(190) NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    role          ENUM('lecture_seule','modification','administration') NOT NULL DEFAULT 'lecture_seule',
+    role          ENUM('lecture_seule','documentaliste','modification','administration') NOT NULL DEFAULT 'lecture_seule',
     actif         TINYINT(1) NOT NULL DEFAULT 1,
     avatar        VARCHAR(64) NULL DEFAULT NULL,
     created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -131,10 +132,12 @@ CREATE TABLE vehicules (
     sortie_angelus       DATE NULL,
     created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at            DATETIME NULL DEFAULT NULL,
     PRIMARY KEY (id),
     UNIQUE KEY uq_vehicules_immat (immatriculation),
     KEY idx_vehicules_sortie (date_sortie_prevue),
     KEY idx_vehicules_statut (statut),
+    KEY idx_vehicules_deleted (deleted_at),
     CONSTRAINT fk_vehicules_modele FOREIGN KEY (modele_id)  REFERENCES modeles (id),
     CONSTRAINT fk_vehicules_entite FOREIGN KEY (entite_id)  REFERENCES entites (id),
     CONSTRAINT fk_vehicules_loueur FOREIGN KEY (loueur_id)  REFERENCES loueurs (id),
@@ -153,9 +156,11 @@ CREATE TABLE vehicules_documents (
     mime            VARCHAR(80) NOT NULL,
     taille          INT UNSIGNED NOT NULL DEFAULT 0,
     created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at      DATETIME NULL DEFAULT NULL,
     PRIMARY KEY (id),
     KEY idx_documents_vehicule (vehicule_id),
     KEY idx_documents_type (type),
+    KEY idx_documents_deleted (deleted_at),
     CONSTRAINT fk_documents_vehicule FOREIGN KEY (vehicule_id) REFERENCES vehicules (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -170,9 +175,11 @@ CREATE TABLE maintenances (
     cout_ttc              DECIMAL(12,2) NOT NULL DEFAULT 0.00,
     commentaire           TEXT NULL,
     created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at            DATETIME NULL DEFAULT NULL,
     PRIMARY KEY (id),
     KEY idx_maintenances_vehicule (vehicule_id),
     KEY idx_maintenances_date (date_operation),
+    KEY idx_maintenances_deleted (deleted_at),
     CONSTRAINT fk_maintenances_vehicule FOREIGN KEY (vehicule_id)          REFERENCES vehicules (id) ON DELETE CASCADE,
     CONSTRAINT fk_maintenances_type    FOREIGN KEY (type_intervention_id) REFERENCES types_intervention (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -211,10 +218,12 @@ CREATE TABLE incidents (
     statut        ENUM('ouvert','en_traitement','cloture') NOT NULL DEFAULT 'ouvert',
     description   TEXT NULL,
     created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at    DATETIME NULL DEFAULT NULL,
     PRIMARY KEY (id),
     KEY idx_incidents_vehicule (vehicule_id),
     KEY idx_incidents_date (date_incident),
     KEY idx_incidents_type (type),
+    KEY idx_incidents_deleted (deleted_at),
     CONSTRAINT fk_incidents_vehicule FOREIGN KEY (vehicule_id) REFERENCES vehicules (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -271,11 +280,34 @@ CREATE TABLE releves_odometre (
     statut          ENUM('saisi', 'verrouille') NOT NULL DEFAULT 'saisi',
     created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at      DATETIME NULL DEFAULT NULL,
     PRIMARY KEY (id),
     UNIQUE KEY uq_releve_vehicule_periode (vehicule_id, periode),
     KEY idx_releve_periode (periode),
     KEY idx_releve_vehicule (vehicule_id),
+    KEY idx_releve_deleted (deleted_at),
     CONSTRAINT fk_releve_vehicule FOREIGN KEY (vehicule_id) REFERENCES vehicules (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --- Journal d'audit et traçabilité -----------------------------------------
+CREATE TABLE journal_audit (
+    id              INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    utilisateur_id  INT UNSIGNED NULL DEFAULT NULL,
+    utilisateur_nom VARCHAR(120) NULL DEFAULT NULL,
+    action          ENUM('creation', 'modification', 'suppression', 'import') NOT NULL,
+    entite          VARCHAR(40) NOT NULL,
+    entite_id       INT UNSIGNED NULL DEFAULT NULL,
+    immatriculation VARCHAR(20) NULL DEFAULT NULL,
+    description     VARCHAR(255) NOT NULL,
+    details         TEXT NULL DEFAULT NULL,
+    ip              VARCHAR(45) NULL DEFAULT NULL,
+    PRIMARY KEY (id),
+    KEY idx_journal_created_at (created_at),
+    KEY idx_journal_action (action),
+    KEY idx_journal_entite (entite),
+    KEY idx_journal_immat (immatriculation),
+    KEY idx_journal_user (utilisateur_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;

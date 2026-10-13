@@ -9,6 +9,7 @@ declare(strict_types=1);
 use Core\Router;
 use Controllers\AgendaController;
 use Controllers\ApiController;
+use Controllers\AuditController;
 use Controllers\AuthController;
 use Controllers\BackupController;
 use Controllers\DashboardController;
@@ -47,18 +48,24 @@ $router->get('/vehicules', VehicleController::class, 'index');
 $router->get('/vehicules/voir', VehicleController::class, 'show');
 $router->post('/vehicules/enregistrer', VehicleController::class, 'save');
 $router->post('/vehicules/supprimer', VehicleController::class, 'delete');
+$router->post('/vehicules/restaurer', VehicleController::class, 'restore');
+$router->post('/vehicules/supprimer-definitif', VehicleController::class, 'forceDelete');
 $router->post('/vehicules/importer-csv', VehicleController::class, 'importerCsv');
 $router->get('/vehicules/modele-csv', VehicleController::class, 'modeleCsv');
 $router->post('/vehicules/document', VehicleController::class, 'uploadDocument');
 $router->get('/vehicules/document/telecharger', VehicleController::class, 'downloadDocument');
 $router->get('/vehicules/document/apercu', VehicleController::class, 'previewDocument');
 $router->post('/vehicules/document/supprimer', VehicleController::class, 'deleteDocument');
+$router->post('/vehicules/document/restaurer', VehicleController::class, 'restoreDocument');
+$router->post('/vehicules/document/supprimer-definitif', VehicleController::class, 'forceDeleteDocument');
 
 // --- Entretien ---------------------------------------------------------------
 $router->get('/entretien', MaintenanceController::class, 'index');
 $router->get('/entretien/voir', MaintenanceController::class, 'show');
 $router->post('/entretien/enregistrer', MaintenanceController::class, 'save');
 $router->post('/entretien/supprimer', MaintenanceController::class, 'delete');
+$router->post('/entretien/restaurer', MaintenanceController::class, 'restore');
+$router->post('/entretien/supprimer-definitif', MaintenanceController::class, 'forceDelete');
 $router->post('/entretien/fichier', MaintenanceController::class, 'upload');
 $router->get('/entretien/fichier/telecharger', MaintenanceController::class, 'download');
 $router->get('/entretien/fichier/apercu', MaintenanceController::class, 'preview');
@@ -69,6 +76,8 @@ $router->get('/incidents', IncidentController::class, 'index');
 $router->get('/incidents/voir', IncidentController::class, 'show');
 $router->post('/incidents/enregistrer', IncidentController::class, 'save');
 $router->post('/incidents/supprimer', IncidentController::class, 'delete');
+$router->post('/incidents/restaurer', IncidentController::class, 'restore');
+$router->post('/incidents/supprimer-definitif', IncidentController::class, 'forceDelete');
 $router->post('/incidents/fichier', IncidentController::class, 'upload');
 $router->get('/incidents/fichier/telecharger', IncidentController::class, 'download');
 $router->get('/incidents/fichier/apercu', IncidentController::class, 'preview');
@@ -91,6 +100,11 @@ $router->get('/api/agenda/evenements', AgendaController::class, 'evenements');
 $router->get('/admin/utilisateurs', UserController::class, 'index');
 $router->post('/admin/utilisateurs/enregistrer', UserController::class, 'save');
 $router->post('/admin/utilisateurs/supprimer', UserController::class, 'delete');
+
+// --- Administration : journal d'audit ---------------------------------------
+$router->get('/admin/journal', AuditController::class, 'index');
+$router->get('/admin/journal/export-csv', AuditController::class, 'exportCsv');
+$router->post('/admin/journal/purger', AuditController::class, 'purger');
 
 // --- Administration : dictionnaires -----------------------------------------
 $router->get('/admin/dictionnaires', DictionaryController::class, 'index');

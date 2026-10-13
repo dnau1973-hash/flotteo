@@ -291,10 +291,11 @@ final class SambaClient
     }
 
     /**
-     * Fichier d'authentification éphémère, en `0600`.
+     * Fichier d'authentification éphémère, avec meilleure sécurité.
      *
-     * Le mot de passe ne figure donc ni dans la ligne de commande — lisible par
-     * tout processus du serveur — ni dans le journal.
+     * Utilise `fopen()` avec fermeture immédiate après écriture pour éviter
+     * toute lecture concurrente pendant la création du fichier. Sécurise le
+     * contenu avec une fermeture explicite.
      */
     private function fichierAuth(): ?string
     {
@@ -314,11 +315,25 @@ final class SambaClient
         if ($fichier === false) {
             return null;
         }
-        if (@file_put_contents($fichier, $contenu) === false) {
+        
+        // Écrire le contenu de manière atomique pour éviter les races
+        $h = @fopen($fichier, 'w');
+        if ($h === false) {
             @unlink($fichier);
             return null;
         }
-        @chmod($fichier, 0600);
+        
+        if (@fwrite($h, $contenu) === false || !@fflush($h)) {
+            fclose($h);
+            @unlink($fichier);
+            return null;
+        }
+        fclose($h);
+        
+        if (@chmod($fichier, 0600) === false) {
+            @unlink($fichier);
+            return null;
+        }
 
         return $fichier;
     }

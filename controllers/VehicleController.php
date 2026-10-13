@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Controllers;
 
+use Core\Auth;
 use Core\Controller;
 use Core\Csrf;
 use Core\Flash;
@@ -10,6 +11,7 @@ use Core\Logger;
 use Core\Request;
 use Core\Response;
 use Core\Upload;
+use Models\AuditLog;
 use Models\Dictionary;
 use Models\Maintenance;
 use Models\Vehicle;
@@ -80,16 +82,16 @@ final class VehicleController extends Controller
         $this->render('vehicles/show', [
             'base_url'    => $this->baseUrl(),
             'vehicule'    => $vehicule,
-            'entretiens'  => Maintenance::search(['vehicule_id' => $id]),
+            'entretiens'   => Maintenance::search(['vehicule_id' => $id, 'avec_archives' => Auth::can(Auth::ROLE_ADMIN) ? '1' : '0']),
             'nomenclature' => [
                 'modeles' => Dictionary::list('modeles'),
                 'entites' => Dictionary::list('entites'),
                 'loueurs' => Dictionary::list('loueurs'),
                 'lieux'   => Dictionary::list('lieux'),
             ],
-            'statuts' => Vehicle::STATUTS,
+            'statuts'      => Vehicle::STATUTS,
             'historiqueKm' => \Models\Mileage::historique12Mois($id),
-            'documents'    => VehicleDocument::forVehicle($id),
+            'documents'    => VehicleDocument::forVehicle($id, Auth::can(Auth::ROLE_ADMIN)),
             'docTypes'     => VehicleDocument::TYPES,
         ]);
     }
@@ -112,10 +114,26 @@ final class VehicleController extends Controller
 
         try {
             if ($id > 0) {
+                $existant = Vehicle::find($id);
                 Vehicle::update($id, $payload);
+                $diff = $existant !== null ? AuditLog::diff($existant, $payload) : ['apres' => $payload];
+                AuditLog::modification(
+                    'vehicule',
+                    $id,
+                    $payload['immatriculation'],
+                    "Modification du véhicule {$payload['immatriculation']}",
+                    $diff
+                );
                 Flash::add('success', 'La fiche véhicule a été mise à jour.');
             } else {
                 $id = Vehicle::create($payload);
+                AuditLog::creation(
+                    'vehicule',
+                    $id,
+                    $payload['immatriculation'],
+                    "Création du véhicule {$payload['immatriculation']}",
+                    $payload
+                );
                 Flash::add('success', 'Le véhicule a été ajouté au parc.');
             }
         } catch (\PDOException $e) {
@@ -127,7 +145,7 @@ final class VehicleController extends Controller
         $this->redirect($id > 0 ? '/vehicules/voir?id=' . $id : '/vehicules');
     }
 
-    /** Suppression d'un véhicule (POST). */
+    /** Suppression logique d'un véhicule (POST). */
     public function delete(): void
     {
         $this->guardPost();
@@ -139,11 +157,75 @@ final class VehicleController extends Controller
                 Flash::add('danger', 'Véhicule introuvable.');
                 $this->redirect('/vehicules');
             }
-            Vehicle::delete($id);
-            Flash::add('success', 'Le véhicule ' . $vehicule['immatriculation'] . ' a été supprimé.');
+            Vehicle::softDelete($id);
+            AuditLog::suppression(
+                'vehicule',
+                $id,
+                $vehicule['immatriculation'],
+                "Archivage (suppression logique) du véhicule {$vehicule['immatriculation']}",
+                $vehicule
+            );
+            Flash::add('success', 'Le véhicule ' . $vehicule['immatriculation'] . ' a été archivé (invisible pour les profils non-administrateurs).');
         } catch (\PDOException $e) {
-            Logger::error("Suppression véhicule #$id impossible", $e);
-            Flash::add('danger', 'Suppression impossible : ce véhicule est référencé.');
+            Logger::error("Archivage véhicule #$id impossible", $e);
+            Flash::add('danger', 'Archivage impossible.');
+        }
+
+        $this->redirect('/vehicules');
+    }
+
+    /** Restauration d'un véhicule archivé (POST, admin seulement). */
+    public function restore(): void
+    {
+        $this->guardPost(Auth::ROLE_ADMIN);
+        $id = Request::int('id');
+
+        try {
+            $vehicule = Vehicle::find($id);
+            if ($vehicule === null) {
+                Flash::add('danger', 'Véhicule introuvable.');
+                $this->redirect('/vehicules');
+            }
+            Vehicle::restore($id);
+            AuditLog::modification(
+                'vehicule',
+                $id,
+                $vehicule['immatriculation'],
+                "Restauration du véhicule {$vehicule['immatriculation']}"
+            );
+            Flash::add('success', 'Le véhicule ' . $vehicule['immatriculation'] . ' a été restauré avec succès.');
+            $this->redirect('/vehicules/voir?id=' . $id);
+        } catch (\Throwable $e) {
+            Logger::error("Restauration véhicule #$id impossible", $e);
+            Flash::add('danger', 'Restauration impossible.');
+            $this->redirect('/vehicules');
+        }
+    }
+
+    /** Suppression définitive et irréversible d'un véhicule (POST, admin seulement). */
+    public function forceDelete(): void
+    {
+        $this->guardPost(Auth::ROLE_ADMIN);
+        $id = Request::int('id');
+
+        try {
+            $vehicule = Vehicle::find($id);
+            if ($vehicule === null) {
+                Flash::add('danger', 'Véhicule introuvable.');
+                $this->redirect('/vehicules');
+            }
+            Vehicle::forceDelete($id);
+            AuditLog::suppression(
+                'vehicule',
+                $id,
+                $vehicule['immatriculation'],
+                "Suppression définitive du véhicule {$vehicule['immatriculation']}",
+                $vehicule
+            );
+            Flash::add('success', 'Le véhicule ' . $vehicule['immatriculation'] . ' a été définitivement supprimé.');
+        } catch (\PDOException $e) {
+            Logger::error("Suppression définitive véhicule #$id impossible", $e);
+            Flash::add('danger', 'Suppression définitive impossible : ce véhicule possède des références actives.');
         }
 
         $this->redirect('/vehicules');
@@ -232,7 +314,7 @@ final class VehicleController extends Controller
      */
     public function uploadDocument(): void
     {
-        $this->guardPost();
+        $this->guardPost(Auth::ROLE_DOCUMENTALISTE);
 
         $vehiculeId = Request::int('vehicule_id');
         $vehicule   = $vehiculeId > 0 ? Vehicle::find($vehiculeId) : null;
@@ -347,11 +429,11 @@ final class VehicleController extends Controller
     }
 
     /**
-     * Suppression d'un document (POST).
+     * Suppression logique d'un document (POST).
      */
     public function deleteDocument(): void
     {
-        $this->guardPost();
+        $this->guardPost(Auth::ROLE_DOCUMENTALISTE);
         $id  = Request::int('id');
         $doc = VehicleDocument::find($id);
         if ($doc === null) {
@@ -360,10 +442,85 @@ final class VehicleController extends Controller
         }
 
         $vehiculeId = (int) $doc['vehicule_id'];
-        if (VehicleDocument::delete($id)) {
-            Flash::add('success', 'Le document a été supprimé.');
+        $vehicule = Vehicle::find($vehiculeId);
+        $immat = $vehicule['immatriculation'] ?? null;
+
+        if (VehicleDocument::softDelete($id)) {
+            AuditLog::suppression(
+                'document',
+                $id,
+                $immat,
+                "Archivage (suppression logique) du document « {$doc['titre']} »",
+                $doc
+            );
+            Flash::add('success', 'Le document a été archivé (masqué pour les non-administrateurs).');
         } else {
-            Flash::add('danger', 'Suppression impossible.');
+            Flash::add('danger', 'Archivage impossible.');
+        }
+
+        $this->redirect('/vehicules/voir?id=' . $vehiculeId);
+    }
+
+    /**
+     * Restauration d'un document archivé (POST, admin).
+     */
+    public function restoreDocument(): void
+    {
+        $this->guardPost(Auth::ROLE_ADMIN);
+        $id  = Request::int('id');
+        $doc = VehicleDocument::find($id);
+        if ($doc === null) {
+            Flash::add('danger', 'Document introuvable.');
+            $this->redirect('/vehicules');
+        }
+
+        $vehiculeId = (int) $doc['vehicule_id'];
+        $vehicule = Vehicle::find($vehiculeId);
+        $immat = $vehicule['immatriculation'] ?? null;
+
+        if (VehicleDocument::restore($id)) {
+            AuditLog::modification(
+                'document',
+                $id,
+                $immat,
+                "Restauration du document « {$doc['titre']} »"
+            );
+            Flash::add('success', 'Le document a été restauré avec succès.');
+        } else {
+            Flash::add('danger', 'Restauration impossible.');
+        }
+
+        $this->redirect('/vehicules/voir?id=' . $vehiculeId);
+    }
+
+    /**
+     * Suppression définitive d'un document et retrait du fichier physique (POST, admin).
+     */
+    public function forceDeleteDocument(): void
+    {
+        $this->guardPost(Auth::ROLE_ADMIN);
+        $id  = Request::int('id');
+        $doc = VehicleDocument::find($id);
+        if ($doc === null) {
+            Flash::add('danger', 'Document introuvable.');
+            $this->redirect('/vehicules');
+        }
+
+        $vehiculeId = (int) $doc['vehicule_id'];
+        $vehicule = Vehicle::find($vehiculeId);
+        $immat = $vehicule['immatriculation'] ?? null;
+
+        if (VehicleDocument::forceDelete($id)) {
+            AuditLog::suppression(
+                'document',
+                $id,
+                $immat,
+                "Suppression définitive du document « {$doc['titre']} »",
+                $doc
+            );
+            Flash::add('success', 'Le document et son fichier ont été définitivement supprimés.');
+        } else {
+            Flash::add('danger', 'Suppression définitive impossible.');
         }
 
         $this->redirect('/vehicules/voir?id=' . $vehiculeId);

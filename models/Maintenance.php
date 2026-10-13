@@ -49,14 +49,26 @@ final class Maintenance
 
     public static function find(int $id): ?array
     {
-        return Database::one(self::SELECT_BASE . ' WHERE m.id = :id', ['id' => $id]);
+        SoftDeleteMigration::run();
+        $m = Database::one(self::SELECT_BASE . ' WHERE m.id = :id', ['id' => $id]);
+        if ($m !== null && $m['deleted_at'] !== null && !\Core\Auth::can(\Core\Auth::ROLE_ADMIN)) {
+            return null;
+        }
+        return $m;
     }
 
     /** Historique d'un véhicule ou liste globale filtrée. */
     public static function search(array $filtres = []): array
     {
+        SoftDeleteMigration::run();
         $where  = [];
         $params = [];
+
+        $isAdmin = \Core\Auth::can(\Core\Auth::ROLE_ADMIN);
+        $avecArchives = !empty($filtres['avec_archives']) && (string) $filtres['avec_archives'] === '1';
+        if (!$isAdmin || !$avecArchives) {
+            $where[] = 'm.deleted_at IS NULL';
+        }
 
         if (!empty($filtres['vehicule_id'])) {
             $where[] = 'm.vehicule_id = :v';
@@ -91,10 +103,11 @@ final class Maintenance
     public static function filtersFromRequest(): array
     {
         return [
-            'vehicule_id' => Request::int('vehicule_id'),
-            'categorie'   => (string) Request::input('categorie', ''),
-            'du'          => Request::date('du'),
-            'au'          => Request::date('au'),
+            'vehicule_id'   => Request::int('vehicule_id'),
+            'categorie'     => (string) Request::input('categorie', ''),
+            'du'            => Request::date('du'),
+            'au'            => Request::date('au'),
+            'avec_archives' => (string) Request::input('avec_archives', '0'),
         ];
     }
 
@@ -123,17 +136,41 @@ final class Maintenance
         return Database::update('maintenances', $id, $d);
     }
 
-    public static function delete(int $id): int
+    /**
+     * Suppression logique (soft delete) : invisible pour les non-admins,
+     * conserve les factures et photos jointes.
+     */
+    public static function softDelete(int $id): int
     {
-        // Les fichiers partent avec la prestation : une clé étrangère en CASCADE
-        // efface les lignes, mais pas les octets sur le disque. Sans ce retrait,
-        // chaque prestation supprimée laisserait derrière elle des factures et
-        // des photos que rien ne rattacherait plus à rien.
+        SoftDeleteMigration::run();
+        return Database::update('maintenances', $id, ['deleted_at' => date('Y-m-d H:i:s')]);
+    }
+
+    /**
+     * Restauration d'une prestation d'entretien archivée (admin).
+     */
+    public static function restore(int $id): int
+    {
+        SoftDeleteMigration::run();
+        return Database::update('maintenances', $id, ['deleted_at' => null]);
+    }
+
+    /**
+     * Suppression définitive et retrait physique des pièces jointes (admin).
+     */
+    public static function forceDelete(int $id): int
+    {
+        SoftDeleteMigration::run();
         foreach (self::files($id) as $fichier) {
             Upload::remove(self::DOSSIER, (string) $fichier['nom_fichier']);
         }
-
         return Database::delete('maintenances', $id);
+    }
+
+    /** Alias rétro-compatible de softDelete. */
+    public static function delete(int $id): int
+    {
+        return self::softDelete($id);
     }
 
     public static function validate(array $d): array
@@ -157,19 +194,20 @@ final class Maintenance
     /** Coût cumulé d'entretien sur une période, avec filtre entité optionnel. */
     public static function totalPeriode(string $du, string $au, ?int $entiteId = null): float
     {
+        SoftDeleteMigration::run();
         if ($entiteId !== null && $entiteId > 0) {
             return (float) Database::scalar(
                 'SELECT COALESCE(SUM(m.cout_ht), 0)
                  FROM maintenances m
                  INNER JOIN vehicules v ON v.id = m.vehicule_id
-                 WHERE m.date_operation BETWEEN :du AND :au AND v.entite_id = :entite',
+                 WHERE m.deleted_at IS NULL AND m.date_operation BETWEEN :du AND :au AND v.entite_id = :entite',
                 ['du' => $du, 'au' => $au, 'entite' => $entiteId],
                 0.0
             );
         }
 
         return (float) Database::scalar(
-            'SELECT COALESCE(SUM(cout_ht), 0) FROM maintenances WHERE date_operation BETWEEN :du AND :au',
+            'SELECT COALESCE(SUM(cout_ht), 0) FROM maintenances WHERE deleted_at IS NULL AND date_operation BETWEEN :du AND :au',
             ['du' => $du, 'au' => $au],
             0.0
         );

@@ -58,13 +58,18 @@ $erreur = static function (string $message): void {
 
 /** Options reconnues, et leur effet. */
 $options = array_slice($argv, 1);
-$inconnues = array_diff($options, ['--sans-rotation', '--rotation-seule', '--sans-externalisation', '--aide']);
+$optionsValides = ['--sans-rotation', '--rotation-seule', '--aide'];
+$inconnues = [];
+foreach ($options as $option) {
+    if (!in_array($option, $optionsValides, true)) {
+        $inconnues[] = $option;
+    }
+}
 
 if (in_array('--aide', $options, true)) {
     $sortie('Usage : php bin/backup.php [options]');
     $sortie('  --sans-rotation          ne pas purger les archives anciennes');
     $sortie('  --rotation-seule         purger sans produire d\'archive');
-    $sortie('  --sans-externalisation   ne pas tenter la copie vers le partage');
     $sortie('  --aide                   cette aide');
     exit(0);
 }
@@ -74,9 +79,8 @@ if ($inconnues !== []) {
     exit(2);
 }
 
-$rotationSeule     = in_array('--rotation-seule', $options, true);
-$sansRotation      = in_array('--sans-rotation', $options, true);
-$sansExternalisation = in_array('--sans-externalisation', $options, true);
+$rotationSeule = in_array('--rotation-seule', $options, true);
+$sansRotation = in_array('--sans-rotation', $options, true);
 
 try {
     $sortie('Flotteo — sauvegarde planifiée.');
@@ -108,7 +112,7 @@ try {
     $code = 0;
 
     if (!$rotationSeule) {
-        $resultat = BackupService::generer(!$sansExternalisation && $partage);
+        $resultat = BackupService::generer($partage);
 
         if (!$resultat['ok']) {
             $erreur($resultat['message']);
@@ -128,14 +132,6 @@ try {
             $code = 1;
         } elseif ($samba === 'reussi') {
             $sortie('Copie réseau Samba effectuée.');
-        }
-
-        $usb = (string) ($resultat['usb'] ?? 'non_configure');
-        if ($usb === 'echec') {
-            $sortie('Alerte : archive produite, copie USB en échec — ' . (string) ($resultat['usb_message'] ?? ''));
-            $code = 1;
-        } elseif ($usb === 'reussi') {
-            $sortie('Copie sur support USB / disque externe effectuée.');
         }
     } else {
         $sortie('Rotation seule : aucune archive produite.');

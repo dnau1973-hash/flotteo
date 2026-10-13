@@ -2,14 +2,9 @@
 declare(strict_types=1);
 
 /**
- * Section « Sauvegardes » : durée de conservation, partage réseau Samba, exécution
- * immédiate et historique des archives.
+ * Section « Sauvegardes » : durée de conservation, partage réseau Samba et externalisation USB.
  *
- * Quatre formulaires distincts, aucun imbriqué : les réglages, la sauvegarde
- * immédiate, la rotation et la suppression d'un élément de l'historique. Chacun
- * porte son jeton CSRF et sa propre action, conformément à la règle « aucune
- * alerte native » : la suppression passe par la modale Tabler comme partout
- * ailleurs dans l'application.
+ * Trois formulaires distincts : les réglages, la sauvegarde immédiate et la rotation.
  *
  * Le mot de passe Samba n'est jamais renvoyé par le formulaire : un champ vide
  * conserve la valeur enregistrée, une case à cocher dédiée demande son
@@ -352,7 +347,7 @@ $derniere        = $historique[0] ?? null;
                                 <a class="btn btn-sm"
                                    href="<?= $e($base_url . '/admin/sauvegardes/telecharger?fichier=' . urlencode($fichier)) ?>"
                                    title="Télécharger l'archive sur ce poste">
-                                    <?= $icone('download') ?>
+                                     <?= $icone('download') ?>
                                 </a>
                                 <form method="post" action="<?= $e($base_url . '/admin/sauvegardes/exporter-usb') ?>"
                                       class="d-inline">
@@ -384,7 +379,7 @@ $derniere        = $historique[0] ?? null;
 <div class="card-body border-top no-print">
     <h4 class="mb-3"><?= $icone('clock', 'me-2') ?>Exécution planifiée</h4>
     <div class="row g-3">
-        <div class="col-lg-7">
+        <div classinput-group">
             <label class="form-label" for="cron-flotteo-backup">Tâche cron</label>
             <div class="input-group">
                 <input type="text" class="form-control font-monospace text-break" id="cron-flotteo-backup"

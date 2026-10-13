@@ -30,8 +30,9 @@ $icone = static fn (string $nom, string $classes = ''): string => Icon::solid($n
 
 // Teintes du bandeau supérieur et du badge, par rôle.
 $teintes = [
-    'lecture_seule' => ['bandeau' => 'bg-secondary-lt', 'badge' => 'bg-secondary-lt'],
-    'modification'  => ['bandeau' => 'bg-blue-lt',      'badge' => 'bg-blue-lt'],
+    'lecture_seule'  => ['bandeau' => 'bg-secondary-lt', 'badge' => 'bg-secondary-lt'],
+    'documentaliste' => ['bandeau' => 'bg-azure-lt',     'badge' => 'bg-azure-lt'],
+    'modification'   => ['bandeau' => 'bg-blue-lt',      'badge' => 'bg-blue-lt'],
     'administration' => ['bandeau' => 'bg-purple-lt',   'badge' => 'bg-purple-lt'],
 ];
 $teinte = static fn (string $role): array => $teintes[$role] ?? $teintes['lecture_seule'];
@@ -148,20 +149,24 @@ $teinte = static fn (string $role): array => $teintes[$role] ?? $teintes['lectur
         <h4 class="mb-2">Matrice des rôles</h4>
         <div class="table-responsive">
             <table class="table table-sm">
-                <thead><tr><th>Rôle</th><th>Consultation</th><th>Écriture (flotte, entretien, incidents)</th>
+                <thead><tr><th>Rôle</th><th>Consultation</th><th>Ajout documents</th><th>Écriture (flotte, entretien, incidents)</th>
                     <th>Utilisateurs &amp; paramétrage</th></tr></thead>
                 <tbody>
                 <tr>
                     <td><span class="badge bg-secondary-lt">Lecture Seule</span></td>
-                    <td>✔</td><td>—</td><td>—</td>
+                    <td>✔</td><td>—</td><td>—</td><td>—</td>
+                </tr>
+                <tr>
+                    <td><span class="badge bg-azure-lt">Documentaliste</span></td>
+                    <td>✔</td><td>✔</td><td>—</td><td>—</td>
                 </tr>
                 <tr>
                     <td><span class="badge bg-blue-lt">Modification</span></td>
-                    <td>✔</td><td>✔</td><td>—</td>
+                    <td>✔</td><td>✔</td><td>✔</td><td>—</td>
                 </tr>
                 <tr>
                     <td><span class="badge bg-purple-lt">Administration</span></td>
-                    <td>✔</td><td>✔</td><td>✔</td>
+                    <td>✔</td><td>✔</td><td>✔</td><td>✔</td>
                 </tr>
                 </tbody>
             </table>

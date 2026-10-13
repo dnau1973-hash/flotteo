@@ -8,6 +8,7 @@ use Core\Controller;
 use Core\Flash;
 use Core\Logger;
 use Core\Request;
+use Models\AuditLog;
 use Models\Mileage;
 use Models\Vehicle;
 
@@ -80,6 +81,17 @@ final class MileageController extends Controller
 
         try {
             $res = Mileage::sauvegarderIndex($vehiculeId, $periode, $indexKm);
+
+            $vehicule = Vehicle::find($vehiculeId);
+            $immat = $vehicule['immatriculation'] ?? null;
+            AuditLog::modification(
+                'kilometrage',
+                $vehiculeId,
+                $immat,
+                "Relevé kilométrique {$periode} : " . number_format($indexKm, 0, ',', ' ') . ' km' . ($immat ? " ($immat)" : ''),
+                ['periode' => $periode, 'index_km' => $indexKm]
+            );
+
             $this->ok('Relevé enregistré.', $res);
         } catch (\PDOException $e) {
             Logger::error('Enregistrement rapide odomètre impossible', $e);

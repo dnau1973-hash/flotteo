@@ -126,10 +126,10 @@ $modifiable = Auth::can(Auth::ROLE_MODIFICATION);
                             <a href="<?= $e($base_url . '/incidents/voir?id=' . (int) $i['id']) ?>" class="btn btn-sm">Dossier</a>
                             <?php if ($modifiable): ?>
                                 <form method="post" action="<?= $e($base_url . '/incidents/supprimer') ?>" class="d-inline"
-                                      data-confirmer="Supprimer cet incident et toutes ses pièces jointes ?">
+                                      data-confirmer="Archiver ce dossier d'incident ? Il sera masqué pour les profils non-administrateurs.">
                                     <?= Csrf::field() ?>
                                     <input type="hidden" name="id" value="<?= (int) $i['id'] ?>">
-                                    <button type="submit" class="btn btn-sm text-danger" title="Supprimer">
+                                    <button type="submit" class="btn btn-sm text-secondary" title="Archiver">
                                         <svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
                                              stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                             <path d="M4 7h16"/><path d="M9 7v-3h6v3"/><path d="M6 7l1 13h10l1 -13"/>

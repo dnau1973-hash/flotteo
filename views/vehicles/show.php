@@ -18,6 +18,7 @@ use Models\VehicleDocument;
 $e = static fn (?string $v): string => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
 $icone = static fn (string $nom, string $classes = ''): string => Icon::solid($nom, $classes);
 $modifiable = Auth::can(Auth::ROLE_MODIFICATION);
+$peutAjouterDocument = Auth::can(Auth::ROLE_DOCUMENTALISTE);
 $documents = $documents ?? [];
 $poids = static function (int $octets): string {
     if ($octets >= 1048576) {
@@ -74,6 +75,41 @@ $liens = [
 ];
 ?>
 
+<?php if (!empty($vehicule['deleted_at'])): ?>
+    <div class="alert alert-warning d-flex align-items-center justify-content-between mb-3 shadow-xs">
+        <div class="d-flex align-items-center gap-2">
+            <span class="avatar bg-warning text-white rounded">
+                <?= $icone('triangle-exclamation') ?>
+            </span>
+            <div>
+                <strong class="d-block text-warning-emphasis">Véhicule archivé (supprimé logiquement)</strong>
+                <span class="text-secondary small">
+                    Ce véhicule est masqué pour tous les profils non-administrateurs depuis le <?= date('d/m/Y à H:i', strtotime((string) $vehicule['deleted_at'])) ?>.
+                </span>
+            </div>
+        </div>
+        <?php if (Auth::can(Auth::ROLE_ADMIN)): ?>
+            <div class="d-flex gap-2">
+                <form method="post" action="<?= $e($base_url . '/vehicules/restaurer') ?>">
+                    <?= Csrf::field() ?>
+                    <input type="hidden" name="id" value="<?= (int) $vehicule['id'] ?>">
+                    <button type="submit" class="btn btn-success btn-sm">
+                        <?= $icone('clock-rotate-left', 'me-1') ?>Restaurer le véhicule
+                    </button>
+                </form>
+                <form method="post" action="<?= $e($base_url . '/vehicules/supprimer-definitif') ?>"
+                      data-confirmer="Attention : Supprimer DÉFINITIVEMENT le véhicule <?= $e($vehicule['immatriculation']) ?> ? Cette action est irréversible.">
+                    <?= Csrf::field() ?>
+                    <input type="hidden" name="id" value="<?= (int) $vehicule['id'] ?>">
+                    <button type="submit" class="btn btn-danger btn-sm">
+                        <?= $icone('trash-can', 'me-1') ?>Supprimer définitivement
+                    </button>
+                </form>
+            </div>
+        <?php endif; ?>
+    </div>
+<?php endif; ?>
+
 <div class="row row-cards">
     <!-- Identité et cycle d'exploitation -->
     <div class="col-lg-4 d-flex">
@@ -81,6 +117,11 @@ $liens = [
             <div class="card-header">
                 <h3 class="card-title">Fiche véhicule</h3>
                 <div class="card-actions">
+                    <?php if (!empty($vehicule['deleted_at'])): ?>
+                        <span class="badge bg-warning-lt text-warning me-1">
+                            <?= $icone('box-archive', 'me-1') ?>Archivé
+                        </span>
+                    <?php endif; ?>
                     <span class="badge <?= $classes[(string) $vehicule['statut']] ?? 'bg-secondary-lt' ?> badge-statut">
                         <?= $e(Vehicle::STATUTS[(string) $vehicule['statut']] ?? (string) $vehicule['statut']) ?>
                     </span>
@@ -177,12 +218,32 @@ $liens = [
                 <a href="<?= $e($base_url . '/vehicules') ?>" class="btn btn-outline-secondary me-2">Retour à la flotte</a>
                 <?php if ($modifiable): ?>
                     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modal-vehicule">Modifier</button>
-                    <form method="post" action="<?= $e($base_url . '/vehicules/supprimer') ?>" class="ms-auto"
-                          data-confirmer="Supprimer définitivement le véhicule <?= $e($vehicule['immatriculation']) ?> ? Son historique d'entretien et ses incidents seront également perdus.">
-                        <?= Csrf::field() ?>
-                        <input type="hidden" name="id" value="<?= (int) $vehicule['id'] ?>">
-                        <button type="submit" class="btn btn-danger">Supprimer</button>
-                    </form>
+                    <?php if (!empty($vehicule['deleted_at'])): ?>
+                        <?php if (Auth::can(Auth::ROLE_ADMIN)): ?>
+                            <form method="post" action="<?= $e($base_url . '/vehicules/restaurer') ?>" class="ms-auto me-2">
+                                <?= Csrf::field() ?>
+                                <input type="hidden" name="id" value="<?= (int) $vehicule['id'] ?>">
+                                <button type="submit" class="btn btn-success">
+                                    <?= $icone('clock-rotate-left', 'me-1') ?>Restaurer
+                                </button>
+                            </form>
+                            <form method="post" action="<?= $e($base_url . '/vehicules/supprimer-definitif') ?>"
+                                  data-confirmer="Attention : Supprimer DÉFINITIVEMENT le véhicule <?= $e($vehicule['immatriculation']) ?> ? Cette action est irréversible.">
+                                <?= Csrf::field() ?>
+                                <input type="hidden" name="id" value="<?= (int) $vehicule['id'] ?>">
+                                <button type="submit" class="btn btn-danger">Supprimer définitivement</button>
+                            </form>
+                        <?php endif; ?>
+                    <?php else: ?>
+                        <form method="post" action="<?= $e($base_url . '/vehicules/supprimer') ?>" class="ms-auto"
+                              data-confirmer="Archiver le véhicule <?= $e($vehicule['immatriculation']) ?> ? Il sera masqué pour les profils non-administrateurs.">
+                            <?= Csrf::field() ?>
+                            <input type="hidden" name="id" value="<?= (int) $vehicule['id'] ?>">
+                            <button type="submit" class="btn btn-outline-danger">
+                                <?= $icone('box-archive', 'me-1') ?>Archiver
+                            </button>
+                        </form>
+                    <?php endif; ?>
                 <?php endif; ?>
             </div>
         </div>
@@ -198,7 +259,7 @@ $liens = [
                 </h3>
                 <div class="card-actions d-flex align-items-center gap-2">
                     <span class="badge bg-secondary-lt"><?= count($documents) ?> document<?= count($documents) > 1 ? 's' : '' ?></span>
-                    <?php if ($modifiable): ?>
+                    <?php if ($peutAjouterDocument): ?>
                         <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modal-ajouter-document">
                             <?= $icone('plus', 'me-1') ?>Ajouter un document
                         </button>
@@ -215,7 +276,7 @@ $liens = [
                         <p class="text-secondary small mb-3">
                             Enregistrez ici la carte grise, l'attestation d'assurance, le dernier contrôle technique ou les contrats.
                         </p>
-                        <?php if ($modifiable): ?>
+                        <?php if ($peutAjouterDocument): ?>
                             <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modal-ajouter-document">
                                 <?= $icone('plus', 'me-1') ?>Ajouter un premier document
                             </button>
@@ -337,15 +398,36 @@ $liens = [
                                                 <i class="fa-solid fa-download" aria-hidden="true"></i>
                                             </a>
                                             <?php if ($modifiable): ?>
-                                                <form method="post" action="<?= $e($base_url . '/vehicules/document/supprimer') ?>"
-                                                      class="d-inline"
-                                                      data-confirmer="Supprimer définitivement ce document (<?= $e((string) $d['titre']) ?>) ?">
-                                                    <?= Csrf::field() ?>
-                                                    <input type="hidden" name="id" value="<?= (int) $d['id'] ?>">
-                                                    <button type="submit" class="btn btn-sm btn-icon btn-outline-danger" title="Supprimer le document">
-                                                        <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
-                                                    </button>
-                                                </form>
+                                                <?php if (!empty($d['deleted_at'])): ?>
+                                                    <?php if (Auth::can(Auth::ROLE_ADMIN)): ?>
+                                                        <form method="post" action="<?= $e($base_url . '/vehicules/document/restaurer') ?>" class="d-inline">
+                                                            <?= Csrf::field() ?>
+                                                            <input type="hidden" name="id" value="<?= (int) $d['id'] ?>">
+                                                            <button type="submit" class="btn btn-sm btn-icon btn-outline-success" title="Restaurer le document">
+                                                                <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>
+                                                            </button>
+                                                        </form>
+                                                        <form method="post" action="<?= $e($base_url . '/vehicules/document/supprimer-definitif') ?>"
+                                                              class="d-inline"
+                                                              data-confirmer="Supprimer DÉFINITIVEMENT ce document (<?= $e((string) $d['titre']) ?>) ?">
+                                                            <?= Csrf::field() ?>
+                                                            <input type="hidden" name="id" value="<?= (int) $d['id'] ?>">
+                                                            <button type="submit" class="btn btn-sm btn-icon btn-danger" title="Supprimer définitivement">
+                                                                <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
+                                                            </button>
+                                                        </form>
+                                                    <?php endif; ?>
+                                                <?php else: ?>
+                                                    <form method="post" action="<?= $e($base_url . '/vehicules/document/supprimer') ?>"
+                                                          class="d-inline"
+                                                          data-confirmer="Archiver ce document (<?= $e((string) $d['titre']) ?>) ? Il sera masqué pour les profils non-administrateurs.">
+                                                        <?= Csrf::field() ?>
+                                                        <input type="hidden" name="id" value="<?= (int) $d['id'] ?>">
+                                                        <button type="submit" class="btn btn-sm btn-icon btn-outline-danger" title="Archiver le document">
+                                                            <i class="fa-solid fa-box-archive" aria-hidden="true"></i>
+                                                        </button>
+                                                    </form>
+                                                <?php endif; ?>
                                             <?php endif; ?>
                                         </div>
                                     </td>
@@ -567,7 +649,7 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 
 <!-- Modale d'ajout d'un document -->
-<?php if ($modifiable): ?>
+<?php if ($peutAjouterDocument): ?>
 <div class="modal modal-blur fade" id="modal-ajouter-document" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered" role="document">
         <div class="modal-content">

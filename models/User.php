@@ -12,10 +12,33 @@ use Core\Url;
 final class User
 {
     public const ROLES = [
-        'lecture_seule' => 'Lecture Seule',
-        'modification'  => 'Modification',
+        'lecture_seule'  => 'Lecture Seule',
+        'documentaliste' => 'Documentaliste',
+        'modification'   => 'Modification',
         'administration' => 'Administration',
     ];
+
+    private static bool $schemaVerifie = false;
+
+    /**
+     * S'assure que la colonne ENUM 'role' de la table 'utilisateurs' inclut bien 'documentaliste'.
+     */
+    public static function ensureRoleEnum(): void
+    {
+        if (self::$schemaVerifie) {
+            return;
+        }
+        self::$schemaVerifie = true;
+
+        try {
+            $col = Database::one("SHOW COLUMNS FROM utilisateurs LIKE 'role'");
+            if ($col && isset($col['Type']) && !str_contains((string) $col['Type'], 'documentaliste')) {
+                Database::run("ALTER TABLE utilisateurs MODIFY COLUMN role ENUM('lecture_seule','documentaliste','modification','administration') NOT NULL DEFAULT 'lecture_seule'");
+            }
+        } catch (\Throwable $e) {
+            \Core\Logger::error('Mise à jour ENUM rôle utilisateur impossible', $e);
+        }
+    }
 
     /** Sous-dossier de `public/uploads` où sont déposés les avatars. */
     public const DOSSIER_AVATAR = 'avatars';
@@ -35,22 +58,26 @@ final class User
 
     public static function find(int $id): ?array
     {
+        self::ensureRoleEnum();
         return Database::one('SELECT * FROM utilisateurs WHERE id = :id', ['id' => $id]);
     }
 
     /** Recherche par email (insensible à la casse via collation). */
     public static function findByLogin(string $identifiant): ?array
     {
+        self::ensureRoleEnum();
         return Database::one('SELECT * FROM utilisateurs WHERE email = :e LIMIT 1', ['e' => $identifiant]);
     }
 
     public static function all(): array
     {
+        self::ensureRoleEnum();
         return Database::all('SELECT * FROM utilisateurs ORDER BY nom ASC');
     }
 
     public static function create(string $nom, string $email, string $motDePasse, string $role, ?string $avatar = null): int
     {
+        self::ensureRoleEnum();
         return Database::insert('utilisateurs', [
             'nom'           => $nom,
             'email'         => $email,
@@ -71,6 +98,7 @@ final class User
      */
     public static function update(int $id, string $nom, string $email, string $role, int $actif): int
     {
+        self::ensureRoleEnum();
         return Database::update('utilisateurs', $id, [
             'nom'   => $nom,
             'email' => $email,

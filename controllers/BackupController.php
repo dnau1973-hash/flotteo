@@ -67,58 +67,6 @@ final class BackupController extends Controller
             : $this->ko($verdict['message'], 422);
     }
 
-    /** Test d'accès à la clé USB / répertoire externe (POST JSON). */
-    public function testerUsb(): void
-    {
-        if (!Csrf::check()) {
-            $this->ko('Jeton de sécurité invalide. Rechargez la page.', 419);
-        }
-        if (!Auth::can(Auth::ROLE_ADMIN)) {
-            $this->ko('Accès réservé aux administrateurs.', 403);
-        }
-
-        $dossier = trim((string) Request::input('sauvegarde_usb_dossier', ''));
-        if ($dossier === '') {
-            $dossier = '/media/usb';
-        }
-
-        if (!is_dir($dossier)) {
-            $this->ko("Le répertoire spécifié \"$dossier\" n'existe pas ou la clé USB n'est pas insérée/montée.", 422);
-        }
-
-        if (!is_writable($dossier)) {
-            $this->ko("Le répertoire \"$dossier\" est présent mais non inscriptible (droits insuffisants ou lecture seule).", 422);
-        }
-
-        $this->ok("Le répertoire / clé USB \"$dossier\" est accessible et prêt pour l'écriture.");
-    }
-
-    /** Export manuel d'une archive vers la clé USB / support externe (POST). */
-    public function exporterUsb(): void
-    {
-        $this->guardPost(Auth::ROLE_ADMIN);
-
-        $ligne = Backup::find(Request::int('id'));
-        if ($ligne === null) {
-            Flash::add('danger', 'Sauvegarde introuvable.');
-            $this->redirect(self::RETOUR);
-        }
-
-        $fichier = (string) $ligne['fichier'];
-        $chemin  = BackupService::cheminArchive($fichier);
-
-        if ($chemin === null) {
-            Flash::add('danger', 'Fichier d\'archive absent du stockage.');
-            $this->redirect(self::RETOUR);
-        }
-
-        $resultat = BackupService::copierVersUsb((int) $ligne['id'], $chemin);
-
-        Flash::add(($resultat['ok'] ?? false) && ($resultat['usb'] ?? '') === 'reussi' ? 'success' : 'danger', $resultat['message']);
-
-        $this->redirect(self::RETOUR);
-    }
-
     /** Sauvegarde immédiate (POST). */
     public function lancer(): void
     {
@@ -145,8 +93,8 @@ final class BackupController extends Controller
             $this->redirect(self::RETOUR);
         }
 
-        // La sauvegarde locale a réussi : le verdict Samba et USB sont des éléments
-        // distincts du message, jamais une cause d'échec global.
+        // La sauvegarde locale a réussi : le verdict Samba est un élément
+        // du message, jamais une cause d'échec global.
         Flash::add('success', $resultat['message']);
 
         $samba = (string) ($resultat['samba'] ?? 'non_configure');
@@ -155,14 +103,6 @@ final class BackupController extends Controller
                 . (string) ($resultat['samba_message'] ?? '') . ' Vérifiez le point de montage ou le binaire smbclient.');
         } elseif ($samba === 'reussi') {
             Flash::add('info', 'Archive copiée sur le partage réseau.');
-        }
-
-        $usb = (string) ($resultat['usb'] ?? 'non_configure');
-        if ($usb === 'echec') {
-            Flash::add('warning', 'Copie vers la clé USB / disque externe échouée : '
-                . (string) ($resultat['usb_message'] ?? '') . ' Vérifiez le point de montage du support.');
-        } elseif ($usb === 'reussi') {
-            Flash::add('info', 'Archive copiée sur la clé USB / disque externe.');
         }
 
         $this->redirect(self::RETOUR);

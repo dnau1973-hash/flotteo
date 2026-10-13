@@ -44,8 +44,13 @@ final class Vehicle
 
     public static function find(int $id): ?array
     {
+        SoftDeleteMigration::run();
         $v = Database::one(self::SELECT_BASE . ' WHERE v.id = :id', ['id' => $id]);
         if ($v !== null) {
+            // Un profil non-administrateur ne peut pas accéder à un véhicule archivé
+            if ($v['deleted_at'] !== null && !\Core\Auth::can(\Core\Auth::ROLE_ADMIN)) {
+                return null;
+            }
             try {
                 $v['marque_logo'] = Database::scalar(
                     'SELECT ma.logo FROM marques ma
@@ -71,13 +76,23 @@ final class Vehicle
     /**
      * Prépare les clauses WHERE et les paramètres pour le filtrage du parc.
      *
-     * @param array{q?:string, entite?:int, loueur?:int, lieu?:int, statut?:string, echeance?:string} $filtres
+     * @param array{q?:string, entite?:int, loueur?:int, lieu?:int, statut?:string, echeance?:string, avec_archives?:string} $filtres
      * @return array{0: list<string>, 1: array<string, mixed>}
      */
     private static function buildWhereFiltres(array $filtres): array
     {
+        SoftDeleteMigration::run();
         $where  = [];
         $params = [];
+
+        // Gestion de la suppression logique (soft delete) :
+        // Les profils non-administrateurs ne voient JAMAIS les véhicules archivés.
+        // Les administrateurs ne les voient que si explicitement demandé (?avec_archives=1).
+        $isAdmin = \Core\Auth::can(\Core\Auth::ROLE_ADMIN);
+        $avecArchives = !empty($filtres['avec_archives']) && (string) $filtres['avec_archives'] === '1';
+        if (!$isAdmin || !$avecArchives) {
+            $where[] = 'v.deleted_at IS NULL';
+        }
 
         $q = trim((string) ($filtres['q'] ?? ''));
         if ($q !== '') {
@@ -186,8 +201,10 @@ final class Vehicle
      */
     public static function echeancesEntre(string $du, string $au): array
     {
+        SoftDeleteMigration::run();
         $sql = self::SELECT_BASE . '
-                 WHERE v.date_sortie_effective IS NULL
+                 WHERE v.deleted_at IS NULL
+                   AND v.date_sortie_effective IS NULL
                    AND v.date_sortie_prevue BETWEEN :du AND :au
                  ORDER BY v.date_sortie_prevue ASC';
 
@@ -212,12 +229,13 @@ final class Vehicle
     public static function filtersFromRequest(): array
     {
         return [
-            'q'        => (string) Request::input('q', ''),
-            'entite'   => Request::int('entite'),
-            'loueur'   => Request::int('loueur'),
-            'lieu'     => Request::int('lieu'),
-            'statut'   => (string) Request::input('statut', ''),
-            'echeance' => (string) Request::input('echeance', ''),
+            'q'             => (string) Request::input('q', ''),
+            'entite'        => Request::int('entite'),
+            'loueur'        => Request::int('loueur'),
+            'lieu'          => Request::int('lieu'),
+            'statut'        => (string) Request::input('statut', ''),
+            'echeance'      => (string) Request::input('echeance', ''),
+            'avec_archives' => (string) Request::input('avec_archives', '0'),
         ];
     }
 
@@ -311,9 +329,42 @@ final class Vehicle
         return Database::update('vehicules', $id, $data);
     }
 
+    /**
+     * Suppression logique (soft delete) : rend le véhicule invisible
+     * pour les profils non-administrateurs sans effacer les données.
+     */
+    public static function softDelete(int $id): int
+    {
+        SoftDeleteMigration::run();
+        return Database::update('vehicules', $id, ['deleted_at' => date('Y-m-d H:i:s')]);
+    }
+
+    /**
+     * Restauration d'un véhicule archivé (admin).
+     */
+    public static function restore(int $id): int
+    {
+        SoftDeleteMigration::run();
+        return Database::update('vehicules', $id, ['deleted_at' => null]);
+    }
+
+    /**
+     * Suppression définitive et irréversible (admin).
+     */
+    public static function forceDelete(int $id): int
+    {
+        SoftDeleteMigration::run();
+        // Suppression physique des documents liés
+        foreach (VehicleDocument::forVehicle($id, true) as $doc) {
+            VehicleDocument::forceDelete((int) $doc['id']);
+        }
+        return Database::delete('vehicules', $id);
+    }
+
+    /** Alias rétro-compatible de softDelete. */
     public static function delete(int $id): int
     {
-        return Database::delete('vehicules', $id);
+        return self::softDelete($id);
     }
 
     public static function findByImmatriculation(string $immat): ?array
@@ -642,10 +693,11 @@ final class Vehicle
     /** Statistiques de parc pour les cartes KPI, avec filtre entité optionnel. */
     public static function stats(?int $entiteId = null): array
     {
-        $where = '';
+        SoftDeleteMigration::run();
+        $where = ' WHERE deleted_at IS NULL';
         $params = [];
         if ($entiteId !== null && $entiteId > 0) {
-            $where = ' WHERE entite_id = :entite';
+            $where .= ' AND entite_id = :entite';
             $params['entite'] = $entiteId;
         }
 
@@ -659,7 +711,7 @@ final class Vehicle
                 AVG(km_maxi)               AS km_maxi_moyen
             FROM vehicules{$where}", $params) ?? [];
 
-        $whereAlertes = ' WHERE date_sortie_effective IS NULL AND date_sortie_prevue <= :limite';
+        $whereAlertes = ' WHERE deleted_at IS NULL AND date_sortie_effective IS NULL AND date_sortie_prevue <= :limite';
         $paramsAlertes = ['limite' => date('Y-m-d', strtotime('+90 days'))];
         if ($entiteId !== null && $entiteId > 0) {
             $whereAlertes .= ' AND entite_id = :entite';

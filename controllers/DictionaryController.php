@@ -8,6 +8,7 @@ use Core\Controller;
 use Core\Flash;
 use Core\Logger;
 use Core\Request;
+use Models\AuditLog;
 use Models\Dictionary;
 
 
@@ -107,9 +108,23 @@ final class DictionaryController extends Controller
                         \Core\Upload::remove($dossierUpload, $ancienFichier);
                     }
                 }
+                AuditLog::modification(
+                    'dictionnaire',
+                    $id,
+                    null,
+                    "Modification dans le référentiel {$def['titre']} (" . ($payload['nom'] ?? "#$id") . ')',
+                    $payload
+                );
                 Flash::add('success', 'Entrée mise à jour.');
             } else {
                 Dictionary::create($type, $payload);
+                AuditLog::creation(
+                    'dictionnaire',
+                    null,
+                    null,
+                    "Ajout dans le référentiel {$def['titre']} (" . ($payload['nom'] ?? '') . ')',
+                    $payload
+                );
                 Flash::add('success', 'Entrée ajoutée à la table de paramétrage.');
             }
         } catch (\PDOException $e) {
@@ -131,11 +146,18 @@ final class DictionaryController extends Controller
         $type = (string) $this->paramType();
         $id   = Request::int('id');
 
-        if (Dictionary::definition($type) === null) {
+        $def = Dictionary::definition($type);
+        if ($def === null) {
             $this->repondreErreurs(['Table de paramétrage inconnue.'], $type);
         }
 
         if (Dictionary::delete($type, $id)) {
+            AuditLog::suppression(
+                'dictionnaire',
+                $id,
+                null,
+                "Suppression dans le référentiel {$def['titre']} #$id"
+            );
             Flash::add('success', 'Entrée supprimée.');
         } else {
             Flash::add('danger', 'Suppression impossible : cette entrée est encore utilisée par un véhicule ou un entretien.');

@@ -9,6 +9,7 @@ use Core\Flash;
 use Core\Logger;
 use Core\Request;
 use Core\Upload;
+use Models\AuditLog;
 use Models\User;
 
 
@@ -105,11 +106,30 @@ final class UserController extends Controller
                 }
 
                 $this->appliquerAvatar($id, $avatar, $suppression, (string) ($existant['avatar'] ?? ''));
+
+                $payload = ['nom' => $nom, 'email' => $email, 'role' => $role, 'actif' => $actif];
+                $diff = $existant !== null ? AuditLog::diff($existant, $payload) : ['apres' => $payload];
+                AuditLog::modification(
+                    'utilisateur',
+                    $id,
+                    null,
+                    "Modification du compte utilisateur $nom ($email)",
+                    $diff
+                );
+
                 Flash::add('success', 'Utilisateur mis à jour.');
             } else {
                 // À la création, `avatar_supprimer` n'a rien à supprimer : le
                 // dépôt éventuel a déjà été transmis à `User::create()`.
-                User::create($nom, $email, $pwd, $role, $avatar);
+                $newId = User::create($nom, $email, $pwd, $role, $avatar);
+                AuditLog::creation(
+                    'utilisateur',
+                    $newId,
+                    null,
+                    "Création du compte utilisateur $nom ($email)",
+                    ['nom' => $nom, 'email' => $email, 'role' => $role, 'actif' => 1]
+                );
+
                 Flash::add('success', 'Utilisateur créé.');
             }
         } catch (\PDOException $e) {
@@ -140,8 +160,19 @@ final class UserController extends Controller
             $this->redirect('/admin/utilisateurs');
         }
 
+        $existant = User::find($id);
+
         try {
             User::delete($id);
+            if ($existant !== null) {
+                AuditLog::suppression(
+                    'utilisateur',
+                    $id,
+                    null,
+                    "Suppression du compte utilisateur {$existant['nom']} ({$existant['email']})",
+                    $existant
+                );
+            }
             Flash::add('success', 'Utilisateur supprimé.');
         } catch (\PDOException $e) {
             Logger::error("Suppression utilisateur #$id impossible", $e);

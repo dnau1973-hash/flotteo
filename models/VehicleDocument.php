@@ -96,12 +96,15 @@ final class VehicleDocument
      *
      * @return array<int, array<string, mixed>>
      */
-    public static function forVehicle(int $vehiculeId): array
+    public static function forVehicle(int $vehiculeId, bool $inclureArchives = false): array
     {
         self::initTable();
+        SoftDeleteMigration::run();
         try {
+            $isAdmin = \Core\Auth::can(\Core\Auth::ROLE_ADMIN);
+            $whereClause = ($isAdmin && $inclureArchives) ? '' : ' AND deleted_at IS NULL';
             return Database::all(
-                'SELECT * FROM vehicules_documents WHERE vehicule_id = :v ORDER BY created_at DESC, id DESC',
+                "SELECT * FROM vehicules_documents WHERE vehicule_id = :v {$whereClause} ORDER BY created_at DESC, id DESC",
                 ['v' => $vehiculeId]
             );
         } catch (\PDOException $e) {
@@ -118,7 +121,12 @@ final class VehicleDocument
     public static function find(int $id): ?array
     {
         self::initTable();
-        return Database::one('SELECT * FROM vehicules_documents WHERE id = :id', ['id' => $id]);
+        SoftDeleteMigration::run();
+        $doc = Database::one('SELECT * FROM vehicules_documents WHERE id = :id', ['id' => $id]);
+        if ($doc !== null && $doc['deleted_at'] !== null && !\Core\Auth::can(\Core\Auth::ROLE_ADMIN)) {
+            return null;
+        }
+        return $doc;
     }
 
     /**
@@ -152,17 +160,46 @@ final class VehicleDocument
     }
 
     /**
-     * Supprime un document et retire le fichier physique du disque.
+     * Suppression logique (soft delete) : rend le document invisible
+     * pour les profils non-administrateurs, sans effacer le fichier physique.
      */
-    public static function delete(int $id): bool
+    public static function softDelete(int $id): bool
     {
-        $doc = self::find($id);
+        self::initTable();
+        SoftDeleteMigration::run();
+        return Database::update('vehicules_documents', $id, ['deleted_at' => date('Y-m-d H:i:s')]) > 0;
+    }
+
+    /**
+     * Restauration d'un document archivé (admin).
+     */
+    public static function restore(int $id): bool
+    {
+        self::initTable();
+        SoftDeleteMigration::run();
+        return Database::update('vehicules_documents', $id, ['deleted_at' => null]) > 0;
+    }
+
+    /**
+     * Suppression définitive et suppression physique du fichier (admin).
+     */
+    public static function forceDelete(int $id): bool
+    {
+        self::initTable();
+        SoftDeleteMigration::run();
+        $doc = Database::one('SELECT * FROM vehicules_documents WHERE id = :id', ['id' => $id]);
         if ($doc === null) {
             return false;
         }
 
         Upload::remove(self::DOSSIER, (string) $doc['nom_fichier']);
         return Database::delete('vehicules_documents', $id) > 0;
+    }
+
+    /** Alias rétro-compatible de softDelete. */
+    public static function delete(int $id): bool
+    {
+        return self::softDelete($id);
     }
 
     /**

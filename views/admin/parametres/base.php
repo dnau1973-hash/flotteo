@@ -38,6 +38,7 @@
                 'incidents_fichiers' => 'Pièces jointes des incidents',
                 'sauvegardes'        => 'Sauvegardes',
                 'releves_odometre'   => 'Relevés d\'odomètre (kilométrage)',
+                'journal_audit'      => 'Journal d\'audit & traçabilité',
             ];
 
             foreach ($tables as $table => $label): ?>

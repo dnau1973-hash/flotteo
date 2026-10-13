@@ -3,12 +3,14 @@ declare(strict_types=1);
 
 namespace Controllers;
 
+use Core\Auth;
 use Core\Controller;
 use Core\Csrf;
 use Core\Flash;
 use Core\Logger;
 use Core\Request;
 use Core\Upload;
+use Models\AuditLog;
 use Models\Incident;
 use Models\Vehicle;
 
@@ -80,11 +82,30 @@ final class IncidentController extends Controller
         }
 
         try {
+            $vehicule = Vehicle::find((int) $payload['vehicule_id']);
+            $immat    = $vehicule['immatriculation'] ?? null;
+
             if ($id > 0) {
+                $existant = Incident::find($id);
                 Incident::update($id, $payload);
+                $diff = $existant !== null ? AuditLog::diff($existant, $payload) : ['apres' => $payload];
+                AuditLog::modification(
+                    'incident',
+                    $id,
+                    $immat,
+                    "Modification de l'incident #$id" . ($immat ? " ($immat)" : ''),
+                    $diff
+                );
                 Flash::add('success', 'L\'incident a été mis à jour.');
             } else {
                 $id = Incident::create($payload);
+                AuditLog::creation(
+                    'incident',
+                    $id,
+                    $immat,
+                    "Déclaration d'un incident pour le véhicule $immat",
+                    $payload
+                );
                 Flash::add('success', 'L\'incident a été enregistré.');
             }
         } catch (\PDOException $e) {
@@ -95,22 +116,96 @@ final class IncidentController extends Controller
         $this->redirect('/incidents/voir?id=' . $id);
     }
 
-    /** Suppression d'un incident et de ses pièces jointes (POST). */
+    /** Suppression logique d'un incident (POST). */
     public function delete(): void
     {
         $this->guardPost();
         $id = Request::int('id');
 
         try {
-            if (Incident::find($id) === null) {
+            $incident = Incident::find($id);
+            if ($incident === null) {
                 Flash::add('danger', 'Incident introuvable.');
                 $this->redirect('/incidents');
             }
-            Incident::delete($id);
-            Flash::add('success', 'L\'incident et ses pièces jointes ont été supprimés.');
+            Incident::softDelete($id);
+            $vehicule = Vehicle::find((int) $incident['vehicule_id']);
+            $immat    = $vehicule['immatriculation'] ?? null;
+
+            AuditLog::suppression(
+                'incident',
+                $id,
+                $immat,
+                "Archivage (suppression logique) de l'incident #$id" . ($immat ? " ($immat)" : ''),
+                $incident
+            );
+            Flash::add('success', 'L\'incident a été archivé (masqué pour les non-administrateurs).');
         } catch (\PDOException $e) {
-            Logger::error("Suppression incident #$id impossible", $e);
-            Flash::add('danger', 'Suppression impossible.');
+            Logger::error("Archivage incident #$id impossible", $e);
+            Flash::add('danger', 'Archivage impossible.');
+        }
+
+        $this->redirect('/incidents');
+    }
+
+    /** Restauration d'un incident archivé (POST, admin). */
+    public function restore(): void
+    {
+        $this->guardPost(Auth::ROLE_ADMIN);
+        $id = Request::int('id');
+
+        try {
+            $incident = Incident::find($id);
+            if ($incident === null) {
+                Flash::add('danger', 'Incident introuvable.');
+                $this->redirect('/incidents');
+            }
+            Incident::restore($id);
+            $vehicule = Vehicle::find((int) $incident['vehicule_id']);
+            $immat    = $vehicule['immatriculation'] ?? null;
+
+            AuditLog::modification(
+                'incident',
+                $id,
+                $immat,
+                "Restauration de l'incident #$id" . ($immat ? " ($immat)" : '')
+            );
+            Flash::add('success', 'L\'incident a été restauré avec succès.');
+            $this->redirect('/incidents/voir?id=' . $id);
+        } catch (\Throwable $e) {
+            Logger::error("Restauration incident #$id impossible", $e);
+            Flash::add('danger', 'Restauration impossible.');
+            $this->redirect('/incidents');
+        }
+    }
+
+    /** Suppression définitive d'un incident et de ses pièces jointes (POST, admin). */
+    public function forceDelete(): void
+    {
+        $this->guardPost(Auth::ROLE_ADMIN);
+        $id = Request::int('id');
+
+        try {
+            $incident = Incident::find($id);
+            if ($incident === null) {
+                Flash::add('danger', 'Incident introuvable.');
+                $this->redirect('/incidents');
+            }
+            Incident::forceDelete($id);
+            $vehicule = Vehicle::find((int) $incident['vehicule_id']);
+            $immat    = $vehicule['immatriculation'] ?? null;
+
+            AuditLog::suppression(
+                'incident',
+                $id,
+                $immat,
+                "Suppression définitive de l'incident #$id" . ($immat ? " ($immat)" : ''),
+                $incident
+            );
+            Flash::add('success', 'L\'incident et ses pièces jointes ont été définitivement supprimés.');
+        } catch (\PDOException $e) {
+            Logger::error("Suppression définitive incident #$id impossible", $e);
+            Flash::add('danger', 'Suppression définitive impossible.');
         }
 
         $this->redirect('/incidents');
@@ -119,7 +214,7 @@ final class IncidentController extends Controller
     /** Dépôt d'une pièce jointe sur un incident (POST, multipart). */
     public function upload(): void
     {
-        $this->guardPost();
+        $this->guardPost(Auth::ROLE_DOCUMENTALISTE);
 
         $incidentId = Request::int('incident_id');
         $incident   = $incidentId > 0 ? Incident::find($incidentId) : null;

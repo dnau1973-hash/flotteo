@@ -133,8 +133,8 @@ $modifiable = Auth::can(Auth::ROLE_MODIFICATION);
                                         <path d="M4 20h4l10 -10l-4 -4l-10 10z"/><path d="M13.5 6.5l4 4"/>
                                     </svg>
                                 </button>
-                                <button class="btn btn-sm text-danger" type="button"
-                                        data-supprimer="form-suppr-entretien-<?= (int) $m['id'] ?>" title="Supprimer">
+                                <button class="btn btn-sm text-secondary" type="button"
+                                        data-supprimer="form-suppr-entretien-<?= (int) $m['id'] ?>" title="Archiver">
                                     <svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
                                          stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                         <path d="M4 7h16"/><path d="M9 7v-3h6v3"/><path d="M6 7l1 13h10l1 -13"/>
@@ -142,7 +142,7 @@ $modifiable = Auth::can(Auth::ROLE_MODIFICATION);
                                 </button>
                                 <form id="form-suppr-entretien-<?= (int) $m['id'] ?>" method="post" class="d-none"
                                       action="<?= $e($base_url . '/entretien/supprimer') ?>"
-                                      data-confirmer="Supprimer cette prestation d'entretien ?">
+                                      data-confirmer="Archiver cette prestation d'entretien ? Elle sera masquée pour les profils non-administrateurs.">
                                     <?= Csrf::field() ?>
                                     <input type="hidden" name="id" value="<?= (int) $m['id'] ?>">
                                 </form>

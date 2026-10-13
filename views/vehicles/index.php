@@ -126,13 +126,23 @@ $pagesAffichees = $calculerPages($page, $nbPages);
                         <?php endif; ?>
                     </span>
                 </div>
-                <div class="d-flex align-items-center gap-2">
-                    <label class="form-label small mb-0 text-secondary" for="par_page">Par page :</label>
-                    <select class="form-select form-select-sm w-auto" id="par_page" name="par_page" onchange="this.form.submit()">
-                        <?php foreach ([15, 25, 50, 100] as $n): ?>
-                            <option value="<?= $n ?>" <?= $parPage === $n ? 'selected' : '' ?>><?= $n ?></option>
-                        <?php endforeach; ?>
-                    </select>
+                <div class="d-flex align-items-center gap-3">
+                    <?php if (Auth::can(Auth::ROLE_ADMIN)): ?>
+                        <label class="form-check form-check-inline m-0 cursor-pointer">
+                            <input class="form-check-input" type="checkbox" name="avec_archives" value="1" <?= ($filtres['avec_archives'] ?? '0') === '1' ? 'checked' : '' ?> onchange="this.form.submit()">
+                            <span class="form-check-label small text-secondary">
+                                Afficher les véhicules archivés
+                            </span>
+                        </label>
+                    <?php endif; ?>
+                    <div class="d-flex align-items-center gap-2">
+                        <label class="form-label small mb-0 text-secondary" for="par_page">Par page :</label>
+                        <select class="form-select form-select-sm w-auto" id="par_page" name="par_page" onchange="this.form.submit()">
+                            <?php foreach ([15, 25, 50, 100] as $n): ?>
+                                <option value="<?= $n ?>" <?= $parPage === $n ? 'selected' : '' ?>><?= $n ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                 </div>
             </div>
         </form>
@@ -194,8 +204,11 @@ $pagesAffichees = $calculerPages($page, $nbPages);
                 </thead>
                 <tbody>
                 <?php foreach ($vehicules as $v): ?>
-                    <?php $jours = Vehicle::joursRestants($v); ?>
-                    <tr>
+                    <?php
+                    $jours = Vehicle::joursRestants($v);
+                    $isArchive = !empty($v['deleted_at']);
+                    ?>
+                    <tr class="<?= $isArchive ? 'table-warning opacity-75' : '' ?>">
                         <td>
                             <div class="d-flex align-items-center gap-2">
                                 <?php if (!empty($v['marque_logo'])): ?>
@@ -206,9 +219,14 @@ $pagesAffichees = $calculerPages($page, $nbPages);
                                              style="height: 38px; width: auto; max-width: 60px; object-fit: contain;">
                                     </a>
                                 <?php endif; ?>
-                                <a href="<?= $e($base_url . '/vehicules/voir?id=' . (int) $v['id']) ?>" class="text-reset fw-bold text-nowrap">
-                                    <?= $e($v['immatriculation']) ?>
-                                </a>
+                                <div>
+                                    <a href="<?= $e($base_url . '/vehicules/voir?id=' . (int) $v['id']) ?>" class="text-reset fw-bold text-nowrap">
+                                        <?= $e($v['immatriculation']) ?>
+                                    </a>
+                                    <?php if ($isArchive): ?>
+                                        <span class="badge bg-warning-lt text-warning ms-1" title="Véhicule archivé (suppression logique)">Archivé</span>
+                                    <?php endif; ?>
+                                </div>
                             </div>
                         </td>
                         <td class="text-secondary"><?= $e($v['marque_nom'] . ' ' . $v['modele_nom']) ?></td>
@@ -255,7 +273,7 @@ $pagesAffichees = $calculerPages($page, $nbPages);
                             <?php endif; ?>
                         </td>
                         <td><?= $badge((string) $v['statut']) ?></td>
-                        <td class="cell-actions text-end">
+                        <td class="cell-actions text-end text-nowrap">
                             <a href="<?= $e($base_url . '/vehicules/voir?id=' . (int) $v['id']) ?>"
                                class="btn btn-sm" title="Consulter la fiche">
                                 <svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
@@ -272,20 +290,51 @@ $pagesAffichees = $calculerPages($page, $nbPages);
                                         <path d="M4 20h4l10 -10l-4 -4l-10 10z"/><path d="M13.5 6.5l4 4"/>
                                     </svg>
                                 </a>
-                                <button class="btn btn-sm text-danger" type="button"
-                                        data-supprimer="form-suppression-<?= (int) $v['id'] ?>"
-                                        title="Supprimer">
-                                    <svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
-                                         stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                        <path d="M4 7h16"/><path d="M9 7v-3h6v3"/><path d="M6 7l1 13h10l1 -13"/>
-                                    </svg>
-                                </button>
-                                <form id="form-suppression-<?= (int) $v['id'] ?>" method="post"
-                                      action="<?= $e($base_url . '/vehicules/supprimer') ?>" class="d-none"
-                                      data-confirmer="Supprimer définitivement le véhicule <?= $e($v['immatriculation']) ?> ? Cette action est irréversible.">
-                                    <?= Csrf::field() ?>
-                                    <input type="hidden" name="id" value="<?= (int) $v['id'] ?>">
-                                </form>
+                                <?php if ($isArchive): ?>
+                                    <?php if (Auth::can(Auth::ROLE_ADMIN)): ?>
+                                        <form method="post" action="<?= $e($base_url . '/vehicules/restaurer') ?>" class="d-inline"
+                                              data-confirmer="Restaurer le véhicule <?= $e($v['immatriculation']) ?> ?">
+                                            <?= Csrf::field() ?>
+                                            <input type="hidden" name="id" value="<?= (int) $v['id'] ?>">
+                                            <button class="btn btn-sm text-success" type="submit" title="Restaurer le véhicule">
+                                                <svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+                                                     stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                    <path d="M4 12v-3a9 9 0 0 1 14.85 -5.65l1.65 1.65"/>
+                                                    <path d="M20 4v5h-5"/>
+                                                </svg>
+                                            </button>
+                                        </form>
+                                        <button class="btn btn-sm text-danger" type="button"
+                                                data-supprimer="form-force-suppression-<?= (int) $v['id'] ?>"
+                                                title="Supprimer définitivement">
+                                            <svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+                                                 stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                <path d="M4 7h16"/><path d="M9 7v-3h6v3"/><path d="M6 7l1 13h10l1 -13"/>
+                                            </svg>
+                                        </button>
+                                        <form id="form-force-suppression-<?= (int) $v['id'] ?>" method="post"
+                                              action="<?= $e($base_url . '/vehicules/supprimer-definitif') ?>" class="d-none"
+                                              data-confirmer="Supprimer DÉFINITIVEMENT le véhicule <?= $e($v['immatriculation']) ?> ? Cette action est IRRÉVERSIBLE.">
+                                            <?= Csrf::field() ?>
+                                            <input type="hidden" name="id" value="<?= (int) $v['id'] ?>">
+                                        </form>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <button class="btn btn-sm text-secondary" type="button"
+                                            data-supprimer="form-suppression-<?= (int) $v['id'] ?>"
+                                            title="Archiver">
+                                        <svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+                                             stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <path d="M4 7h16"/><path d="M9 7v-3h6v3"/><path d="M6 7l1 13h10l1 -13"/>
+                                        </svg>
+                                    </button>
+                                    <form id="form-suppression-<?= (int) $v['id'] ?>" method="post"
+                                          action="<?= $e($base_url . '/vehicules/supprimer') ?>" class="d-none"
+                                          data-confirmer="Archiver le véhicule <?= $e($v['immatriculation']) ?> ? Il sera masqué pour les profils non-administrateurs.">
+                                        <?= Csrf::field() ?>
+                                        <input type="hidden" name="id" value="<?= (int) $v['id'] ?>">
+                                    </form>
+                                <?php endif; ?>
                             <?php endif; ?>
                         </td>
                     </tr>

@@ -3,12 +3,14 @@ declare(strict_types=1);
 
 namespace Controllers;
 
+use Core\Auth;
 use Core\Controller;
 use Core\Csrf;
 use Core\Flash;
 use Core\Logger;
 use Core\Request;
 use Core\Upload;
+use Models\AuditLog;
 use Models\Dictionary;
 use Models\Maintenance;
 use Models\Vehicle;
@@ -79,11 +81,30 @@ final class MaintenanceController extends Controller
         }
 
         try {
+            $vehicule = Vehicle::find((int) $payload['vehicule_id']);
+            $immat    = $vehicule['immatriculation'] ?? null;
+
             if ($id > 0) {
+                $existant = Maintenance::find($id);
                 Maintenance::update($id, $payload);
+                $diff = $existant !== null ? AuditLog::diff($existant, $payload) : ['apres' => $payload];
+                AuditLog::modification(
+                    'entretien',
+                    $id,
+                    $immat,
+                    "Modification de la prestation d'entretien #$id" . ($immat ? " ($immat)" : ''),
+                    $diff
+                );
                 Flash::add('success', 'La prestation a été mise à jour.');
             } else {
-                Maintenance::create($payload);
+                $id = Maintenance::create($payload);
+                AuditLog::creation(
+                    'entretien',
+                    $id,
+                    $immat,
+                    "Création d'une prestation d'entretien pour le véhicule $immat",
+                    $payload
+                );
                 Flash::add('success', 'La prestation a été enregistrée.');
             }
         } catch (\PDOException $e) {
@@ -94,7 +115,7 @@ final class MaintenanceController extends Controller
         $this->redirect('/entretien');
     }
 
-    /** Suppression d'un entretien (POST). */
+    /** Suppression logique d'un entretien (POST). */
     public function delete(): void
     {
         $this->guardPost();
@@ -106,11 +127,84 @@ final class MaintenanceController extends Controller
                 Flash::add('danger', 'Prestation introuvable.');
                 $this->redirect('/entretien');
             }
-            Maintenance::delete($id);
-            Flash::add('success', 'La prestation a été supprimée.');
+            Maintenance::softDelete($id);
+            $vehicule = Vehicle::find((int) $entretien['vehicule_id']);
+            $immat    = $vehicule['immatriculation'] ?? null;
+
+            AuditLog::suppression(
+                'entretien',
+                $id,
+                $immat,
+                "Archivage (suppression logique) de l'entretien #$id" . ($immat ? " ($immat)" : ''),
+                $entretien
+            );
+            Flash::add('success', 'La prestation a été archivée (masquée pour les non-administrateurs).');
         } catch (\PDOException $e) {
-            Logger::error("Suppression entretien #$id impossible", $e);
-            Flash::add('danger', 'Suppression impossible.');
+            Logger::error("Archivage entretien #$id impossible", $e);
+            Flash::add('danger', 'Archivage impossible.');
+        }
+
+        $this->redirect('/entretien');
+    }
+
+    /** Restauration d'un entretien archivé (POST, admin). */
+    public function restore(): void
+    {
+        $this->guardPost(Auth::ROLE_ADMIN);
+        $id = Request::int('id');
+
+        try {
+            $entretien = Maintenance::find($id);
+            if ($entretien === null) {
+                Flash::add('danger', 'Prestation introuvable.');
+                $this->redirect('/entretien');
+            }
+            Maintenance::restore($id);
+            $vehicule = Vehicle::find((int) $entretien['vehicule_id']);
+            $immat    = $vehicule['immatriculation'] ?? null;
+
+            AuditLog::modification(
+                'entretien',
+                $id,
+                $immat,
+                "Restauration de la prestation d'entretien #$id" . ($immat ? " ($immat)" : '')
+            );
+            Flash::add('success', 'La prestation d\'entretien a été restaurée avec succès.');
+            $this->redirect('/entretien/voir?id=' . $id);
+        } catch (\Throwable $e) {
+            Logger::error("Restauration entretien #$id impossible", $e);
+            Flash::add('danger', 'Restauration impossible.');
+            $this->redirect('/entretien');
+        }
+    }
+
+    /** Suppression définitive et irréversible d'un entretien (POST, admin). */
+    public function forceDelete(): void
+    {
+        $this->guardPost(Auth::ROLE_ADMIN);
+        $id = Request::int('id');
+
+        try {
+            $entretien = Maintenance::find($id);
+            if ($entretien === null) {
+                Flash::add('danger', 'Prestation introuvable.');
+                $this->redirect('/entretien');
+            }
+            Maintenance::forceDelete($id);
+            $vehicule = Vehicle::find((int) $entretien['vehicule_id']);
+            $immat    = $vehicule['immatriculation'] ?? null;
+
+            AuditLog::suppression(
+                'entretien',
+                $id,
+                $immat,
+                "Suppression définitive de la prestation d'entretien #$id" . ($immat ? " ($immat)" : ''),
+                $entretien
+            );
+            Flash::add('success', 'La prestation d\'entretien et ses pièces jointes ont été définitivement supprimées.');
+        } catch (\PDOException $e) {
+            Logger::error("Suppression définitive entretien #$id impossible", $e);
+            Flash::add('danger', 'Suppression définitive impossible.');
         }
 
         $this->redirect('/entretien');
@@ -125,7 +219,7 @@ final class MaintenanceController extends Controller
      */
     public function upload(): void
     {
-        $this->guardPost();
+        $this->guardPost(Auth::ROLE_DOCUMENTALISTE);
 
         $id         = Request::int('maintenance_id');
         $entretien  = $id > 0 ? Maintenance::find($id) : null;

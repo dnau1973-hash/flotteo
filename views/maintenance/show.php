@@ -20,6 +20,7 @@ use Models\Maintenance;
 
 $e = static fn (?string $v): string => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
 $modifiable = Auth::can(Auth::ROLE_MODIFICATION);
+$peutAjouterDocument = Auth::can(Auth::ROLE_DOCUMENTALISTE);
 $config = (require dirname(__DIR__, 2) . '/config/config.php');
 $tailleMax = round($config['securite']['taille_max_upload'] / 1048576);
 
@@ -37,7 +38,44 @@ $poids = static function (int $octets): string {
 
 // `flotteo.css` est chargée par l'en commun ; seul le script de page l'est ici.
 $this->useScript('entretien.js');
+$isArchive = !empty($entretien['deleted_at']);
 ?>
+
+<?php if ($isArchive): ?>
+    <div class="alert alert-warning d-flex align-items-center justify-content-between mb-3 shadow-xs">
+        <div class="d-flex align-items-center gap-2">
+            <span class="avatar bg-warning text-white rounded">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </span>
+            <div>
+                <strong class="d-block text-warning-emphasis">Prestation archivée (supprimée logiquement)</strong>
+                <span class="text-secondary small">
+                    Cette prestation est masquée pour tous les profils non-administrateurs depuis le <?= date('d/m/Y à H:i', strtotime((string) $entretien['deleted_at'])) ?>.
+                </span>
+            </div>
+        </div>
+        <?php if (Auth::can(Auth::ROLE_ADMIN)): ?>
+            <div class="d-flex gap-2">
+                <form method="post" action="<?= $e($base_url . '/entretien/restaurer') ?>">
+                    <?= Csrf::field() ?>
+                    <input type="hidden" name="id" value="<?= (int) $entretien['id'] ?>">
+                    <button type="submit" class="btn btn-success btn-sm">
+                        <i class="fa-solid fa-clock-rotate-left me-1"></i>Restaurer la prestation
+                    </button>
+                </form>
+                <form method="post" action="<?= $e($base_url . '/entretien/supprimer-definitif') ?>"
+                      data-confirmer="Attention : Supprimer DÉFINITIVEMENT cette prestation et ses fichiers ? Cette action est irréversible.">
+                    <?= Csrf::field() ?>
+                    <input type="hidden" name="id" value="<?= (int) $entretien['id'] ?>">
+                    <button type="submit" class="btn btn-danger btn-sm">
+                        <i class="fa-solid fa-trash-can me-1"></i>Supprimer définitivement
+                    </button>
+                </form>
+            </div>
+        <?php endif; ?>
+    </div>
+<?php endif; ?>
+
 <div class="row row-deck row-cards">
     <div class="col-lg-7">
         <div class="card">
@@ -45,6 +83,9 @@ $this->useScript('entretien.js');
                 <h3 class="card-title">Prestation du <?= $e((string) $entretien['date_operation']) ?></h3>
                 <div class="card-actions">
                     <span class="badge bg-blue-lt"><?= $e(ucfirst((string) $entretien['type_categorie'])) ?></span>
+                    <?php if ($isArchive): ?>
+                        <span class="badge bg-warning-lt text-warning ms-1">Archivée</span>
+                    <?php endif; ?>
                 </div>
             </div>
             <div class="card-body">
@@ -105,12 +146,30 @@ $this->useScript('entretien.js');
                         Modifier
                     </button>
                     <a href="<?= $e($base_url . '/entretien') ?>" class="btn btn-outline-secondary ms-2">Retour à la liste</a>
-                    <form method="post" action="<?= $e($base_url . '/entretien/supprimer') ?>" class="ms-auto"
-                          data-confirmer="Supprimer cette prestation d'entretien et ses pièces jointes ? Cette action est irréversible.">
-                        <?= Csrf::field() ?>
-                        <input type="hidden" name="id" value="<?= (int) $entretien['id'] ?>">
-                        <button type="submit" class="btn btn-danger">Supprimer la prestation</button>
-                    </form>
+                    <?php if ($isArchive): ?>
+                        <?php if (Auth::can(Auth::ROLE_ADMIN)): ?>
+                            <div class="ms-auto d-flex gap-2">
+                                <form method="post" action="<?= $e($base_url . '/entretien/restaurer') ?>">
+                                    <?= Csrf::field() ?>
+                                    <input type="hidden" name="id" value="<?= (int) $entretien['id'] ?>">
+                                    <button type="submit" class="btn btn-success">Restaurer</button>
+                                </form>
+                                <form method="post" action="<?= $e($base_url . '/entretien/supprimer-definitif') ?>"
+                                      data-confirmer="Attention : Supprimer définitivement cette prestation et ses fichiers ? Cette action est irréversible.">
+                                    <?= Csrf::field() ?>
+                                    <input type="hidden" name="id" value="<?= (int) $entretien['id'] ?>">
+                                    <button type="submit" class="btn btn-danger">Supprimer définitivement</button>
+                                </form>
+                            </div>
+                        <?php endif; ?>
+                    <?php else: ?>
+                        <form method="post" action="<?= $e($base_url . '/entretien/supprimer') ?>" class="ms-auto"
+                              data-confirmer="Archiver cette prestation d'entretien ? Elle sera masquée pour les profils non-administrateurs.">
+                            <?= Csrf::field() ?>
+                            <input type="hidden" name="id" value="<?= (int) $entretien['id'] ?>">
+                            <button type="submit" class="btn btn-outline-danger">Archiver la prestation</button>
+                        </form>
+                    <?php endif; ?>
                 </div>
             <?php else: ?>
                 <div class="card-footer d-flex no-print">
@@ -228,7 +287,7 @@ $this->useScript('entretien.js');
                 <?php endif; ?>
             </div>
 
-            <?php if ($modifiable): ?>
+            <?php if ($peutAjouterDocument): ?>
                 <div class="card-footer no-print">
                     <form method="post" action="<?= $e($base_url . '/entretien/fichier') ?>" enctype="multipart/form-data">
                         <?= Csrf::field() ?>

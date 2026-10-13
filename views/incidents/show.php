@@ -14,9 +14,46 @@ use Models\Incident;
 
 $e = static fn (?string $v): string => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
 $modifiable = Auth::can(Auth::ROLE_MODIFICATION);
+$peutAjouterDocument = Auth::can(Auth::ROLE_DOCUMENTALISTE);
 $config = (require dirname(__DIR__, 2) . '/config/config.php');
 $tailleMax = round($config['securite']['taille_max_upload'] / 1048576);
+$isArchive = !empty($incident['deleted_at']);
 ?>
+
+<?php if ($isArchive): ?>
+    <div class="alert alert-warning d-flex align-items-center justify-content-between mb-3 shadow-xs">
+        <div class="d-flex align-items-center gap-2">
+            <span class="avatar bg-warning text-white rounded">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </span>
+            <div>
+                <strong class="d-block text-warning-emphasis">Incident archivé (supprimé logiquement)</strong>
+                <span class="text-secondary small">
+                    Ce dossier d'incident est masqué pour tous les profils non-administrateurs depuis le <?= date('d/m/Y à H:i', strtotime((string) $incident['deleted_at'])) ?>.
+                </span>
+            </div>
+        </div>
+        <?php if (Auth::can(Auth::ROLE_ADMIN)): ?>
+            <div class="d-flex gap-2">
+                <form method="post" action="<?= $e($base_url . '/incidents/restaurer') ?>">
+                    <?= Csrf::field() ?>
+                    <input type="hidden" name="id" value="<?= (int) $incident['id'] ?>">
+                    <button type="submit" class="btn btn-success btn-sm">
+                        <i class="fa-solid fa-clock-rotate-left me-1"></i>Restaurer le dossier
+                    </button>
+                </form>
+                <form method="post" action="<?= $e($base_url . '/incidents/supprimer-definitif') ?>"
+                      data-confirmer="Attention : Supprimer DÉFINITIVEMENT cet incident et tous ses fichiers ? Cette action est irréversible.">
+                    <?= Csrf::field() ?>
+                    <input type="hidden" name="id" value="<?= (int) $incident['id'] ?>">
+                    <button type="submit" class="btn btn-danger btn-sm">
+                        <i class="fa-solid fa-trash-can me-1"></i>Supprimer définitivement
+                    </button>
+                </form>
+            </div>
+        <?php endif; ?>
+    </div>
+<?php endif; ?>
 
 <div class="row row-deck row-cards">
     <div class="col-lg-7">
@@ -27,6 +64,9 @@ $tailleMax = round($config['securite']['taille_max_upload'] / 1048576);
                     <span class="badge <?= $incident['statut'] === 'cloture' ? 'bg-green-lt' : ($incident['statut'] === 'en_traitement' ? 'bg-orange-lt' : 'bg-red-lt') ?> badge-statut">
                         <?= $e(Incident::STATUTS[(string) $incident['statut']] ?? (string) $incident['statut']) ?>
                     </span>
+                    <?php if ($isArchive): ?>
+                        <span class="badge bg-warning-lt text-warning ms-1">Archivé</span>
+                    <?php endif; ?>
                 </div>
             </div>
             <div class="card-body">
@@ -69,12 +109,30 @@ $tailleMax = round($config['securite']['taille_max_upload'] / 1048576);
                 <div class="card-footer d-flex no-print">
                     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modal-incident">Modifier</button>
                     <a href="<?= $e($base_url . '/incidents') ?>" class="btn btn-outline-secondary ms-2">Retour à la liste</a>
-                    <form method="post" action="<?= $e($base_url . '/incidents/supprimer') ?>" class="ms-auto"
-                          data-confirmer="Supprimer cet incident et l'ensemble de ses pièces jointes ? Cette action est irréversible.">
-                        <?= Csrf::field() ?>
-                        <input type="hidden" name="id" value="<?= (int) $incident['id'] ?>">
-                        <button type="submit" class="btn btn-danger">Supprimer le dossier</button>
-                    </form>
+                    <?php if ($isArchive): ?>
+                        <?php if (Auth::can(Auth::ROLE_ADMIN)): ?>
+                            <div class="ms-auto d-flex gap-2">
+                                <form method="post" action="<?= $e($base_url . '/incidents/restaurer') ?>">
+                                    <?= Csrf::field() ?>
+                                    <input type="hidden" name="id" value="<?= (int) $incident['id'] ?>">
+                                    <button type="submit" class="btn btn-success">Restaurer le dossier</button>
+                                </form>
+                                <form method="post" action="<?= $e($base_url . '/incidents/supprimer-definitif') ?>"
+                                      data-confirmer="Attention : Supprimer DÉFINITIVEMENT cet incident et l'ensemble de ses pièces jointes ? Cette action est IRRÉVERSIBLE.">
+                                    <?= Csrf::field() ?>
+                                    <input type="hidden" name="id" value="<?= (int) $incident['id'] ?>">
+                                    <button type="submit" class="btn btn-danger">Supprimer définitivement</button>
+                                </form>
+                            </div>
+                        <?php endif; ?>
+                    <?php else: ?>
+                        <form method="post" action="<?= $e($base_url . '/incidents/supprimer') ?>" class="ms-auto"
+                              data-confirmer="Archiver ce dossier d'incident ? Il sera masqué pour les profils non-administrateurs.">
+                            <?= Csrf::field() ?>
+                            <input type="hidden" name="id" value="<?= (int) $incident['id'] ?>">
+                            <button type="submit" class="btn btn-outline-danger">Archiver le dossier</button>
+                        </form>
+                    <?php endif; ?>
                 </div>
             <?php endif; ?>
         </div>
@@ -166,7 +224,7 @@ $tailleMax = round($config['securite']['taille_max_upload'] / 1048576);
                 <?php endif; ?>
             </div>
 
-            <?php if ($modifiable): ?>
+            <?php if ($peutAjouterDocument): ?>
                 <div class="card-footer no-print">
                     <form method="post" action="<?= $e($base_url . '/incidents/fichier') ?>" enctype="multipart/form-data">
                         <?= Csrf::field() ?>

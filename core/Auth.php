@@ -8,14 +8,16 @@ namespace Core;
  */
 final class Auth
 {
-    public const ROLE_LECTURE     = 'lecture_seule';
-    public const ROLE_MODIFICATION = 'modification';
-    public const ROLE_ADMIN        = 'administration';
+    public const ROLE_LECTURE        = 'lecture_seule';
+    public const ROLE_DOCUMENTALISTE = 'documentaliste';
+    public const ROLE_MODIFICATION   = 'modification';
+    public const ROLE_ADMIN          = 'administration';
 
     private const HIERARCHIE = [
-        self::ROLE_LECTURE     => 1,
-        self::ROLE_MODIFICATION => 2,
-        self::ROLE_ADMIN        => 3,
+        self::ROLE_LECTURE        => 1,
+        self::ROLE_DOCUMENTALISTE => 2,
+        self::ROLE_MODIFICATION   => 3,
+        self::ROLE_ADMIN          => 4,
     ];
 
     private static ?array $user = null;
@@ -121,6 +123,12 @@ final class Auth
             return false;
         }
         return (self::HIERARCHIE[$role] ?? 0) >= (self::HIERARCHIE[$roleRequis] ?? 99);
+    }
+
+    /** L'utilisateur courant possède-t-il le rôle administrateur ? */
+    public static function isAdmin(): bool
+    {
+        return self::can(self::ROLE_ADMIN);
     }
 
     public static function requireLogin(): void

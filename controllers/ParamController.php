@@ -74,12 +74,12 @@ final class ParamController extends Controller
         'sauvegardes' => [
             'libelle' => 'Sauvegardes',
             'icone'   => 'box-archive',
-            'resume'  => 'Conservation des archives, copie vers un partage réseau ou une clé USB / disque externe.',
+            'resume'  => 'Conservation des archives et partage réseau Samba.',
             'cles'    => [
                 'sauvegarde_retention_jours', 'sauvegarde_partage_actif', 'samba_hote',
                 'samba_partage', 'samba_repertoire', 'samba_utilisateur',
                 'samba_mot_de_passe', 'samba_domaine',
-                'sauvegarde_usb_actif', 'sauvegarde_usb_dossier',
+                
             ],
         ],
         'mises-a-jour' => [
@@ -118,8 +118,6 @@ final class ParamController extends Controller
         'samba_utilisateur'          => '',
         'samba_mot_de_passe'         => '',
         'samba_domaine'              => '',
-        'sauvegarde_usb_actif'       => '0',
-        'sauvegarde_usb_dossier'     => '/media/usb',
         'depot_github'               => '',
         'km_recurrence'              => 'mensuelle',
         'km_destinataire_type'       => 'gestionnaire',
@@ -261,9 +259,6 @@ final class ParamController extends Controller
      */
     private function valeurAEnregistrer(string $cle, array $stockees): string
     {
-        if ($cle === 'alerte_active' || $cle === 'sauvegarde_partage_actif' || $cle === 'sauvegarde_usb_actif') {
-            return Request::input($cle, '') === '1' ? '1' : '0';
-        }
 
         if ($cle === 'smtp_password' || $cle === 'samba_mot_de_passe') {
             if ((string) Request::input($cle . '_effacer', '') === '1') {
@@ -369,12 +364,6 @@ final class ParamController extends Controller
             return 'Un domaine ne peut être renseigné en accès invité : renseignez aussi un utilisateur, ou retirez le domaine.';
         }
 
-        if ($cle === 'sauvegarde_usb_dossier') {
-            $chemin = trim($valeur);
-            if ($chemin !== '' && preg_match('#^[A-Za-z0-9 _.\-/]+$#', $chemin) !== 1) {
-                return 'Le chemin du répertoire de la clé USB contient des caractères non admis.';
-            }
-        }
 
         // Le dépôt est ensuite réécrit dans une URL d'API : il est contrôlé ici
         // pour qu'une saisie irrecevable ne soit jamais persistée.

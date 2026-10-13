@@ -33,6 +33,7 @@ storage/sessions/
 
 # Journaux : un clone n'a rien à voir avec les traces d'un poste de dev.
 storage/logs/*.log
+storage/backups/*.zip
 
 # --- Fichiers déposés par les utilisateurs ---
 # Les gardes de sécurité des dossiers restent versionnées, d'où les
@@ -48,3 +49,6 @@ public/uploads/**
 Thumbs.db
 .idea/
 .vscode/
+node_modules/
+package.json
+package-lock.json
