@@ -344,6 +344,41 @@ final class AuditLog
     }
 
     /**
+     * Immatriculations présentes dans le journal, pour l'autocomplétion du filtre.
+     *
+     * La source est le journal lui-même (et non la table des véhicules) : un
+     * véhicule supprimé définitivement doit rester recherchable dans l'historique.
+     * La marque et le modèle sont ajoutés lorsque le véhicule existe encore.
+     *
+     * @return list<array{immatriculation: string, libelle: string}>
+     */
+    public static function immatriculations(): array
+    {
+        self::ensureTable();
+
+        $lignes = Database::all(
+            "SELECT j.immatriculation,
+                    MAX(CONCAT_WS(' ', ma.nom, mo.nom)) AS vehicule
+             FROM journal_audit j
+             LEFT JOIN vehicules v ON UPPER(v.immatriculation) = j.immatriculation
+             LEFT JOIN modeles mo ON mo.id = v.modele_id
+             LEFT JOIN marques ma ON ma.id = mo.marque_id
+             WHERE j.immatriculation IS NOT NULL AND j.immatriculation <> ''
+             GROUP BY j.immatriculation
+             ORDER BY j.immatriculation"
+        );
+
+        return array_map(static function (array $l): array {
+            $immat = (string) $l['immatriculation'];
+            $vehicule = trim((string) ($l['vehicule'] ?? ''));
+            return [
+                'immatriculation' => $immat,
+                'libelle'         => $vehicule !== '' ? $immat . ' — ' . $vehicule : $immat,
+            ];
+        }, $lignes);
+    }
+
+    /**
      * Récupère un enregistrement précis par son identifiant.
      */
     public static function find(int $id): ?array

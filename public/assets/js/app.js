@@ -402,6 +402,17 @@
         });
     }
 
+    // Surligne les termes recherchés (insensible à la casse, hors balises HTML).
+    function surlignerTexte(libelle, termes) {
+        var html = echapperHtml(libelle);
+        termes.forEach(function (t) {
+            if (!t) { return; }
+            var motif = echapperHtml(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            html = html.replace(new RegExp('(' + motif + ')(?![^<]*>)', 'ig'), '<mark>$1</mark>');
+        });
+        return html;
+    }
+
     function initAutocompletion(select) {
         if (select.dataset.autocompleteInit === '1') { return; }
         select.dataset.autocompleteInit = '1';
@@ -477,17 +488,6 @@
             indexActif = -1;
         }
 
-        function surligner(libelle, termes) {
-            var html = echapperHtml(libelle);
-            termes.forEach(function (t) {
-                if (t.length < 1) { return; }
-                // Surlignage insensible à la casse sur le texte brut (sans gestion des accents).
-                var motif = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                html = html.replace(new RegExp('(' + motif + ')(?![^<]*>)', 'ig'), '<mark>$1</mark>');
-            });
-            return html;
-        }
-
         function afficher(requete) {
             var termes = normaliser(requete).split(' ').filter(Boolean);
             resultats = options.filter(function (o) {
@@ -507,7 +507,7 @@
                     item.className = 'dropdown-item' + (o.valeur === select.value ? ' active' : '');
                     item.setAttribute('role', 'option');
                     item.setAttribute('data-index', String(i));
-                    item.innerHTML = surligner(o.libelle, requete.trim().split(/\s+/));
+                    item.innerHTML = surlignerTexte(o.libelle, requete.trim().split(/\s+/));
                     menu.appendChild(item);
                 });
                 if (total > visibles.length) {
@@ -644,6 +644,158 @@
 
     function initAutocompletions() {
         document.querySelectorAll('select[data-autocomplete]').forEach(initAutocompletion);
+        document.querySelectorAll('input[data-suggestions]').forEach(initSuggestions);
+    }
+
+    /*
+     * Suggestions sur un champ texte libre : <input data-suggestions='[{"valeur":…,"libelle":…}]'>.
+     * Contrairement au <select data-autocomplete>, la saisie reste libre (recherche
+     * partielle possible) ; la liste n'est qu'une aide. Avec `data-suggestions-submit`,
+     * choisir une suggestion soumet directement le formulaire.
+     */
+    function initSuggestions(champ) {
+        if (champ.dataset.suggestionsInit === '1') { return; }
+        champ.dataset.suggestionsInit = '1';
+
+        var donnees;
+        try {
+            donnees = JSON.parse(champ.getAttribute('data-suggestions') || '[]');
+        } catch (err) {
+            return;
+        }
+        if (!Array.isArray(donnees) || donnees.length === 0) { return; }
+
+        var maxResultats = parseInt(champ.getAttribute('data-suggestions-max') || '30', 10);
+        var soumettre = champ.hasAttribute('data-suggestions-submit');
+        var items = donnees.map(function (d) {
+            var libelle = String(d.libelle || d.valeur);
+            var cle = normaliser(libelle);
+            return { valeur: String(d.valeur), libelle: libelle, cle: cle + ' ' + cle.replace(/ /g, '') };
+        });
+
+        var parent = champ.parentNode;
+        if (getComputedStyle(parent).position === 'static') {
+            parent.classList.add('position-relative');
+        }
+
+        var menu = document.createElement('div');
+        menu.className = 'dropdown-menu autocomplete-menu w-100';
+        menu.setAttribute('role', 'listbox');
+        if (champ.id) {
+            menu.id = champ.id + '_suggestions';
+            champ.setAttribute('aria-controls', menu.id);
+        }
+        champ.setAttribute('role', 'combobox');
+        champ.setAttribute('aria-autocomplete', 'list');
+        champ.setAttribute('aria-expanded', 'false');
+        champ.insertAdjacentElement('afterend', menu);
+
+        var resultats = [];
+        var indexActif = -1;
+
+        function fermer() {
+            menu.classList.remove('show');
+            champ.setAttribute('aria-expanded', 'false');
+            indexActif = -1;
+        }
+
+        function afficher() {
+            var requete = champ.value;
+            var termes = normaliser(requete).split(' ').filter(Boolean);
+            resultats = items.filter(function (o) {
+                return termes.every(function (t) { return o.cle.indexOf(t) !== -1; });
+            });
+
+            menu.innerHTML = '';
+            if (resultats.length === 0) {
+                fermer();
+                return;
+            }
+
+            resultats.slice(0, maxResultats).forEach(function (o, i) {
+                var a = document.createElement('a');
+                a.href = '#';
+                a.className = 'dropdown-item';
+                a.setAttribute('role', 'option');
+                a.setAttribute('data-index', String(i));
+                a.innerHTML = surlignerTexte(o.libelle, requete.trim().split(/\s+/));
+                menu.appendChild(a);
+            });
+            if (resultats.length > maxResultats) {
+                var info = document.createElement('span');
+                info.className = 'dropdown-item-text small text-secondary';
+                info.textContent = (resultats.length - maxResultats) + ' autre(s) résultat(s) — affinez la recherche';
+                menu.appendChild(info);
+            }
+
+            indexActif = -1;
+            menu.classList.add('show');
+            champ.setAttribute('aria-expanded', 'true');
+        }
+
+        function activer(index) {
+            var liens = menu.querySelectorAll('.dropdown-item[data-index]');
+            if (!liens.length) { return; }
+            indexActif = (index + liens.length) % liens.length;
+            liens.forEach(function (el, i) { el.classList.toggle('focus', i === indexActif); });
+            liens[indexActif].scrollIntoView({ block: 'nearest' });
+        }
+
+        function choisir(index) {
+            var o = resultats[index];
+            if (!o) { return; }
+            champ.value = o.valeur;
+            champ.dispatchEvent(new Event('change', { bubbles: true }));
+            fermer();
+            if (soumettre && champ.form) {
+                if (typeof champ.form.requestSubmit === 'function') {
+                    champ.form.requestSubmit();
+                } else {
+                    champ.form.submit();
+                }
+            }
+        }
+
+        champ.addEventListener('input', afficher);
+        champ.addEventListener('focus', afficher);
+
+        champ.addEventListener('keydown', function (e) {
+            var ouvert = menu.classList.contains('show');
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (!ouvert) { afficher(); }
+                activer(indexActif + 1);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                activer(indexActif - 1);
+            } else if (e.key === 'Enter') {
+                // Sans élément actif, Entrée soumet la saisie libre (recherche partielle).
+                if (ouvert && indexActif >= 0) {
+                    e.preventDefault();
+                    choisir(indexActif);
+                }
+            } else if (e.key === 'Escape') {
+                if (ouvert) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    fermer();
+                }
+            } else if (e.key === 'Tab') {
+                fermer();
+            }
+        });
+
+        champ.addEventListener('blur', function () {
+            setTimeout(fermer, 150);
+        });
+
+        menu.addEventListener('mousedown', function (e) { e.preventDefault(); });
+        menu.addEventListener('click', function (e) {
+            var lien = e.target.closest('.dropdown-item[data-index]');
+            if (!lien) { return; }
+            e.preventDefault();
+            choisir(parseInt(lien.getAttribute('data-index'), 10));
+        });
     }
 
     // ---------------------------------------------------------------- Init

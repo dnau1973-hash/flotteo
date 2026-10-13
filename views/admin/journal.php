@@ -76,7 +76,12 @@ $calculerPages = static function (int $actuelle, int $total): array {
                 <div class="input-icon">
                     <span class="input-icon-addon"><?= $icone('car') ?></span>
                     <input type="text" class="form-control text-uppercase" id="immatriculation" name="immatriculation"
-                           value="<?= $e((string) $filtres['immatriculation']) ?>" placeholder="Ex : AA-123-AA" autocomplete="off">
+                           value="<?= $e((string) $filtres['immatriculation']) ?>" placeholder="Ex : AA-123-AA" autocomplete="off"
+                           data-suggestions="<?= $e(json_encode(
+                               array_map(static fn (array $i): array => ['valeur' => $i['immatriculation'], 'libelle' => $i['libelle']], $immatriculations ?? []),
+                               JSON_UNESCAPED_UNICODE
+                           ) ?: '[]') ?>"
+                           data-suggestions-submit>
                 </div>
             </div>
 

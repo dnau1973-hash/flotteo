@@ -50,6 +50,7 @@ final class AuditController extends Controller
             'utilisateurs' => $utilisateurs,
             'actions'      => AuditLog::ACTIONS,
             'entites'      => AuditLog::ENTITES,
+            'immatriculations' => AuditLog::immatriculations(),
         ]);
     }
 
