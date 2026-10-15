@@ -80,7 +80,7 @@ $modifiable = Auth::can(Auth::ROLE_MODIFICATION);
                 <thead>
                 <tr>
                     <th>Date</th><th>Véhicule</th><th>Prestation</th><th>Catégorie</th>
-                    <th>Kilométrage</th><th class="w-1">Coût HT</th><th class="w-1">Coût TTC</th><th class="w-1"></th>
+                    <th>Kilométrage</th><th class="w-1 text-nowrap">Coût HT</th><th class="w-1 text-nowrap">Coût TTC</th><th class="w-1"></th>
                 </tr>
                 </thead>
                 <tbody>
@@ -105,8 +105,8 @@ $modifiable = Auth::can(Auth::ROLE_MODIFICATION);
                         </td>
                         <td><span class="badge bg-blue-lt"><?= $e(ucfirst((string) $m['type_categorie'])) ?></span></td>
                         <td class="text-secondary"><?= $e(number_format((int) $m['kilometrage'], 0, ',', ' ')) ?> km</td>
-                        <td class="text-end"><?= $e(number_format((float) $m['cout_ht'], 2, ',', ' ')) ?> €</td>
-                        <td class="text-end text-secondary"><?= $e(number_format((float) $m['cout_ttc'], 2, ',', ' ')) ?> €</td>
+                        <td class="text-end text-nowrap"><?= $e(number_format((float) $m['cout_ht'], 2, ',', ' ')) ?> €</td>
+                        <td class="text-end text-nowrap text-secondary"><?= $e(number_format((float) $m['cout_ttc'], 2, ',', ' ')) ?> €</td>
                         <td class="cell-actions text-end">
                             <a class="btn btn-sm"
                                href="<?= $e($base_url . '/entretien/voir?id=' . (int) $m['id']) ?>"

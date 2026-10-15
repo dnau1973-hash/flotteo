@@ -380,6 +380,109 @@
     // Exécution immédiate au chargement du script
     initDatepickerFr();
 
+    // ---------------------------------------------------------------- Masque de saisie date
+    /*
+     * Masque JJ-MM-AAAA sur tous les champs datepicker (et `input[data-mask="date"]`) :
+     * l'utilisateur ne tape que les chiffres, les tirets sont insérés automatiquement.
+     * Les écouteurs sont posés sur `document` en phase de capture pour s'exécuter avant
+     * le datepicker Tabler, qui relit ainsi une valeur déjà formatée.
+     */
+    var SELECTEUR_DATE = '[data-bs-toggle="datepicker"], [data-tblr-toggle="datepicker"], input[data-mask="date"]';
+
+    function formaterChiffresDate(chiffres) {
+        chiffres = chiffres.slice(0, 8);
+        if (chiffres.length > 4) { return chiffres.slice(0, 2) + '-' + chiffres.slice(2, 4) + '-' + chiffres.slice(4); }
+        if (chiffres.length > 2) { return chiffres.slice(0, 2) + '-' + chiffres.slice(2); }
+        return chiffres;
+    }
+
+    // Une date ISO (AAAA-MM-JJ, valeur venant de la base) est convertie en JJ-MM-AAAA.
+    function isoVersFr(valeur) {
+        var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(valeur);
+        return m ? m[3] + '-' + m[2] + '-' + m[1] : valeur;
+    }
+
+    function preparerChampDate(champ) {
+        if (champ.dataset.masqueDate === '1') { return; }
+        champ.dataset.masqueDate = '1';
+        champ.setAttribute('inputmode', 'numeric');
+        champ.setAttribute('maxlength', '10');
+        champ.setAttribute('placeholder', 'JJ-MM-AAAA');
+        if (champ.value) { champ.value = isoVersFr(champ.value.trim()); }
+    }
+
+    function initMasquesDate() {
+        document.querySelectorAll(SELECTEUR_DATE).forEach(preparerChampDate);
+    }
+
+    document.addEventListener('focusin', function (e) {
+        var champ = e.target;
+        if (!champ.matches || !champ.matches(SELECTEUR_DATE)) { return; }
+        preparerChampDate(champ);
+        // Valeur ISO injectée par script (pré-remplissage d'une modale d'édition).
+        var converti = isoVersFr(champ.value.trim());
+        if (converti !== champ.value) { champ.value = converti; }
+    }, true);
+
+    document.addEventListener('keydown', function (e) {
+        var champ = e.target;
+        if (!champ.matches || !champ.matches(SELECTEUR_DATE)) { return; }
+        if (e.ctrlKey || e.metaKey || e.altKey) { return; }
+
+        // Retour arrière juste après un tiret : supprime aussi le chiffre qui le précède.
+        if (e.key === 'Backspace' && champ.selectionStart === champ.selectionEnd) {
+            var pos = champ.selectionStart;
+            if (pos > 0 && champ.value.charAt(pos - 1) === '-') {
+                e.preventDefault();
+                var avant = champ.value.slice(0, pos - 2);
+                var apres = champ.value.slice(pos);
+                var chiffresAvant = avant.replace(/\D/g, '');
+                champ.value = formaterChiffresDate(chiffresAvant + apres.replace(/\D/g, ''));
+                var cible = formaterChiffresDate(chiffresAvant).length;
+                champ.setSelectionRange(cible, cible);
+                champ.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            return;
+        }
+
+        // Seuls les chiffres (et les séparateurs, ignorés ensuite) sont acceptés.
+        if (e.key.length === 1 && !/[\d\-\/.]/.test(e.key)) {
+            e.preventDefault();
+        }
+    }, true);
+
+    document.addEventListener('input', function (e) {
+        var champ = e.target;
+        if (!champ.matches || !champ.matches(SELECTEUR_DATE)) { return; }
+
+        var valeur = champ.value;
+        // Valeur complète déjà valide (écrite par le calendrier ou collée) : on ne touche à rien.
+        if (/^\d{2}-\d{2}-\d{4}$/.test(valeur)) { return; }
+        if (/^\d{4}-\d{2}-\d{2}$/.test(valeur) || /^\d{2}[\/.]\d{2}[\/.]\d{4}$/.test(valeur)) {
+            champ.value = isoVersFr(valeur.replace(/[\/.]/g, '-'));
+            return;
+        }
+
+        // Position du curseur exprimée en nombre de chiffres, pour la restaurer après formatage.
+        var curseur = champ.selectionStart || 0;
+        var chiffresAvantCurseur = valeur.slice(0, curseur).replace(/\D/g, '').length;
+        var formate = formaterChiffresDate(valeur.replace(/\D/g, ''));
+        if (formate === valeur) { return; }
+
+        champ.value = formate;
+        var nouvellePos = 0;
+        var compte = 0;
+        while (nouvellePos < formate.length && compte < chiffresAvantCurseur) {
+            if (/\d/.test(formate.charAt(nouvellePos))) { compte++; }
+            nouvellePos++;
+        }
+        // Curseur placé après un tiret auto-inséré pour enchaîner la saisie.
+        if (formate.charAt(nouvellePos) === '-') { nouvellePos++; }
+        champ.setSelectionRange(nouvellePos, nouvellePos);
+    }, true);
+
+    initMasquesDate();
+
     // ---------------------------------------------------------------- Autocomplétion
     /*
      * Transforme un <select data-autocomplete> en champ de recherche avec liste

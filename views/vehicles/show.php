@@ -455,7 +455,7 @@ $liens = [
                     <div class="empty-state">Aucune révision enregistrée pour ce véhicule.</div>
                 <?php else: ?>
                     <table class="table table-vcenter card-table">
-                        <thead><tr><th>Date</th><th>Prestation</th><th>Catégorie</th><th>Kilométrage</th><th class="w-1">Coût HT</th></tr></thead>
+                        <thead><tr><th>Date</th><th>Prestation</th><th>Catégorie</th><th>Kilométrage</th><th class="w-1 text-nowrap">Coût HT</th></tr></thead>
                         <tbody>
                         <?php foreach ($entretiens as $m): ?>
                             <tr>
@@ -463,14 +463,14 @@ $liens = [
                                 <td><?= $e((string) $m['type_libelle']) ?></td>
                                 <td><span class="badge bg-blue-lt"><?= $e(ucfirst((string) $m['type_categorie'])) ?></span></td>
                                 <td class="text-secondary"><?= $e(number_format((int) $m['kilometrage'], 0, ',', ' ')) ?> km</td>
-                                <td class="text-end fw-bold"><?= $e(number_format((float) $m['cout_ht'], 2, ',', ' ')) ?> €</td>
+                                <td class="text-end text-nowrap fw-bold"><?= $e(number_format((float) $m['cout_ht'], 2, ',', ' ')) ?> €</td>
                             </tr>
                         <?php endforeach; ?>
                         </tbody>
                         <tfoot>
                         <tr>
                             <th colspan="4">Cumul entretien HT</th>
-                            <th class="text-end"><?= $e(number_format($coutTotal, 2, ',', ' ')) ?> €</th>
+                            <th class="text-end text-nowrap"><?= $e(number_format($coutTotal, 2, ',', ' ')) ?> €</th>
                         </tr>
                         </tfoot>
                     </table>

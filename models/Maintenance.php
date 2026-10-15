@@ -121,7 +121,7 @@ final class Maintenance
             'date_operation'       => Request::date('date_operation'),
             'kilometrage'          => max(0, Request::int('kilometrage')),
             'cout_ht'              => $ht,
-            'cout_ttc'             => $ttc > 0 ? $ttc : round($ht * 1.2, 2),
+            'cout_ttc'             => $ttc, // saisi librement, jamais calculé depuis le HT
             'commentaire'          => mb_substr((string) Request::input('commentaire', ''), 0, 2000),
         ];
     }

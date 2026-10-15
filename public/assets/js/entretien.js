@@ -49,13 +49,7 @@
             document.getElementById('e_commentaire').value = declencheur.getAttribute('data-commentaire');
         });
 
-        // Le TTC est pré-calculé à partir du HT (TVA 20 %) s'il reste vide.
-        ht.addEventListener('input', function () {
-            var valeurHT = parseFloat(ht.value) || 0;
-            if (parseFloat(ttc.value) === 0 || parseFloat(ttc.value) < valeurHT) {
-                ttc.value = (valeurHT * 1.2).toFixed(2);
-            }
-        });
+        // Le TTC est saisi librement : aucun calcul automatique depuis le HT.
     }
 
     /*
