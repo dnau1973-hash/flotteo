@@ -137,78 +137,22 @@ final class BackupService
         $id = self::enregistrer($nom, $taille, $tables, $fichiers);
 
         $resSamba = $externaliser ? self::externaliser($id, $chemin) : ['samba' => 'non_configure', 'message' => ''];
-        $resUsb   = $externaliser ? self::copierVersUsb($id, $chemin) : ['usb' => 'non_configure', 'message' => ''];
 
         return [
-            'ok'          => true,
-            'message'     => 'Archive ' . $nom . ' produite (' . SambaClient::poids($taille) . ').',
-            'fichier'     => $nom,
-            'taille'      => $taille,
-            'tables'      => $tables,
-            'fichiers'    => $fichiers,
-            'id'          => $id,
-            'samba'       => $resSamba['samba'] ?? 'non_configure',
+            'ok'            => true,
+            'message'       => 'Archive ' . $nom . ' produite (' . SambaClient::poids($taille) . ').',
+            'fichier'       => $nom,
+            'taille'        => $taille,
+            'tables'        => $tables,
+            'fichiers'      => $fichiers,
+            'id'            => $id,
+            'samba'         => $resSamba['samba'] ?? 'non_configure',
             'samba_message' => $resSamba['message'] ?? '',
-            'usb'         => $resUsb['usb'] ?? 'non_configure',
-            'usb_message' => $resUsb['message'] ?? '',
         ];
     }
 
     /**
-     * Copie une archive déjà produite vers la clé USB / le disque externe et consigne le verdict.
-     *
-     * @return array{ok: bool, message: string, usb: string}
-     */
-    public static function copierVersUsb(int $id, string $chemin): array
-    {
-        $reglages = Backup::reglages();
-        if ((string) ($reglages['sauvegarde_usb_actif'] ?? '0') !== '1') {
-            Backup::majUsb($id, 'non_configure', null);
-            Logger::info("Sauvegarde $id produite, copie vers support USB désactivée");
-
-            return ['ok' => true, 'message' => 'Copie sur clé USB / disque externe désactivée.', 'usb' => 'non_configure'];
-        }
-
-        $dossier = trim((string) ($reglages['sauvegarde_usb_dossier'] ?? ''));
-        if ($dossier === '') {
-            $dossier = '/media/usb';
-        }
-
-        if (!is_dir($dossier)) {
-            $msg = "Répertoire / Clé USB introuvable ou non monté : $dossier";
-            Backup::majUsb($id, 'echec', $msg);
-            Logger::error("Sauvegarde $id : $msg");
-
-            return ['ok' => false, 'message' => $msg, 'usb' => 'echec'];
-        }
-
-        if (!is_writable($dossier)) {
-            $msg = "Répertoire / Clé USB non inscriptible (droits insuffisants ou lecture seule) : $dossier";
-            Backup::majUsb($id, 'echec', $msg);
-            Logger::error("Sauvegarde $id : $msg");
-
-            return ['ok' => false, 'message' => $msg, 'usb' => 'echec'];
-        }
-
-        $nomFichier = basename($chemin);
-        $cible = rtrim($dossier, '/\\') . '/' . $nomFichier;
-
-        if (@copy($chemin, $cible)) {
-            Backup::majUsb($id, 'reussi', null);
-            Logger::info("Sauvegarde $id copiée avec succès sur support externe USB : $cible");
-
-            return ['ok' => true, 'message' => "Archive copiée avec succès sur le support USB ($cible).", 'usb' => 'reussi'];
-        }
-
-        $msg = "Échec de la copie de l'archive vers $cible";
-        Backup::majUsb($id, 'echec', $msg);
-        Logger::error("Sauvegarde $id : $msg");
-
-        return ['ok' => false, 'message' => $msg, 'usb' => 'echec'];
-    }
-
-    /**
-     * Copie une archive déjà produite vers le partage configuré et consigne le
+     * Copie une archive déjà produite vers le partage Samba configuré et consigne le
      * verdict. L'échec réseau ne détruit pas la sauvegarde locale.
      *
      * @return array{ok: bool, message: string, samba: string}
@@ -216,11 +160,23 @@ final class BackupService
     public static function externaliser(int $id, string $chemin): array
     {
         $reglages = Backup::reglages();
-        if ((string) $reglages['sauvegarde_partage_actif'] !== '1') {
-            Backup::majSamba($id, 'non_configure', null);
-            Logger::info("Sauvegarde $id produite, externalisation desactivee");
+        $partageActif = (string) ($reglages['sauvegarde_partage_actif'] ?? '0') === '1';
+        $hote = trim((string) ($reglages['samba_hote'] ?? ''));
+        $partage = trim((string) ($reglages['samba_partage'] ?? ''));
+
+        if (!$partageActif) {
+            Backup::majSamba($id, 'non_configure', 'Partage réseau désactivé dans les paramètres.');
+            Logger::info("Sauvegarde $id produite, externalisation Samba désactivée");
 
             return ['ok' => true, 'message' => 'Externalisation désactivée : archive conservée localement.', 'samba' => 'non_configure'];
+        }
+
+        if ($hote === '' || $partage === '') {
+            $msg = 'Paramètres Samba incomplets (hôte ou partage non renseigné).';
+            Backup::majSamba($id, 'non_configure', $msg);
+            Logger::warning("Sauvegarde $id : $msg");
+
+            return ['ok' => false, 'message' => $msg, 'samba' => 'non_configure'];
         }
 
         $client = new SambaClient($reglages);
@@ -229,7 +185,7 @@ final class BackupService
         Backup::majSamba($id, $verdict['ok'] ? 'reussi' : 'echec', $verdict['ok'] ? null : $verdict['message']);
 
         return [
-            'ok'      => true,
+            'ok'      => $verdict['ok'],
             'message' => $verdict['message'],
             'samba'   => $verdict['ok'] ? 'reussi' : 'echec',
         ];
@@ -714,11 +670,6 @@ final class BackupService
         $client     = new SambaClient();
         $disponible = $client->disponible();
 
-        $usbActif        = (string) Backup::reglage('sauvegarde_usb_actif', '0') === '1';
-        $usbDossier      = Backup::reglage('sauvegarde_usb_dossier', '/media/usb');
-        $usbPresent      = is_dir($usbDossier);
-        $usbInscriptible = $usbPresent && is_writable($usbDossier);
-
         return [
             'historique'       => Backup::historique(50),
             'volume'           => self::volume(),
@@ -728,14 +679,7 @@ final class BackupService
             'partage'          => $client->partage(),
             'transport'        => $client->transport(),
             'invite'           => $client->estInvite(),
-            'transportMessage'  => $disponible ? '' : $client->dernierMessage(),
-            'usbActif'         => $usbActif,
-            'usbDossier'       => $usbDossier,
-            'usbPresent'       => $usbPresent,
-            'usbInscriptible'  => $usbInscriptible,
-            'usbMessage'       => !$usbPresent
-                ? 'Répertoire ou clé USB introuvable / non monté(e).'
-                : (!$usbInscriptible ? 'Répertoire ou clé USB trouvé(e) mais non inscriptible (lecture seule).' : 'Répertoire / Clé USB accessible et inscriptible.'),
+            'transportMessage' => $disponible ? '' : $client->dernierMessage(),
         ];
     }
 

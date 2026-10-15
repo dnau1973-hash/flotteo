@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * Section « Sauvegardes » : durée de conservation, partage réseau Samba et externalisation USB.
+ * Section « Sauvegardes » : durée de conservation, archivage local et partage réseau Samba.
  *
  * Trois formulaires distincts : les réglages, la sauvegarde immédiate et la rotation.
  *
@@ -29,11 +29,6 @@ $partageActif    = (bool) ($sauvegardes['partageActif'] ?? false);
 $transport       = $sauvegardes['transport'] ?? null;
 $invite          = (bool) ($sauvegardes['invite'] ?? true);
 $alerte          = (string) ($sauvegardes['transportMessage'] ?? '');
-$usbActif        = (bool) ($sauvegardes['usbActif'] ?? false);
-$usbDossier      = (string) ($sauvegardes['usbDossier'] ?? '/media/usb');
-$usbPresent      = (bool) ($sauvegardes['usbPresent'] ?? false);
-$usbInscriptible = (bool) ($sauvegardes['usbInscriptible'] ?? false);
-$usbMessage      = (string) ($sauvegardes['usbMessage'] ?? '');
 $derniere        = $historique[0] ?? null;
 ?>
 
@@ -97,7 +92,7 @@ $derniere        = $historique[0] ?? null;
         <div class="col-auto">
             <div class="card card-sm">
                 <div class="card-body">
-                    <div class="text-secondary small">Répertoire</div>
+                    <div class="text-secondary small">Répertoire local</div>
                     <div class="text-truncate font-monospace small" style="max-width:22rem"
                          title="storage/backups — hors de la racine servie par Apache">
                         storage/backups
@@ -114,11 +109,11 @@ $derniere        = $historique[0] ?? null;
     <?= Csrf::field() ?>
 
     <div class="card-body border-top">
-        <h4 class="mb-3"><?= $icone('clock', 'me-2') ?>Rétention et rotation</h4>
+        <h4 class="mb-3"><?= $icone('clock', 'me-2') ?>Rétention et rotation des archives</h4>
         <div class="row g-3">
             <div class="col-md-6">
                 <label class="form-label required" for="sauvegarde_retention_jours">
-                    Durée de conservation
+                    Durée de conservation locale
                 </label>
                 <div class="input-group">
                     <input type="number" class="form-control" id="sauvegarde_retention_jours"
@@ -128,31 +123,30 @@ $derniere        = $historique[0] ?? null;
                     <span class="input-group-text">jours</span>
                 </div>
                 <p class="form-hint mb-0">
-                    À chaque exécution planifiée, les archives plus anciennes que ce
+                    À chaque exécution planifiée, les archives locales plus anciennes que ce
                     délai sont supprimées du disque, et les lignes d'historique sans
                     fichier sont retirées.
-                </p>
-            </div>
-
-            <div class="col-md-6">
-                <label class="form-label">Partage réseau</label>
-                <label class="form-check form-switch mt-1">
-                    <input class="form-check-input" type="checkbox" id="sauvegarde_partage_actif"
-                           name="sauvegarde_partage_actif" value="1" <?= $partageActif ? 'checked' : '' ?>>
-                    <span class="form-check-label">
-                        <?= $partageActif ? 'Copie vers le partage activée' : 'Copie vers le partage désactivée' ?>
-                    </span>
-                </label>
-                <p class="form-hint mb-0">
-                    La désactivation n'efface aucun réglage : les archives restent
-                    produites et conservées localement.
                 </p>
             </div>
         </div>
     </div>
 
     <div class="card-body border-top">
-        <h4 class="mb-3"><?= $icone('network-wired', 'me-2') ?>Partage Samba (SMB/CIFS)</h4>
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+            <h4 class="mb-0"><?= $icone('network-wired', 'me-2') ?>Partage réseau Samba (SMB/CIFS)</h4>
+            <label class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="sauvegarde_partage_actif"
+                       name="sauvegarde_partage_actif" value="1" <?= $partageActif ? 'checked' : '' ?>
+                       form="form-sauvegardes-reglages">
+                <span class="form-check-label fw-bold">
+                    <?= $partageActif ? 'Copie vers le partage activée' : 'Copie vers le partage désactivée' ?>
+                </span>
+            </label>
+        </div>
+
+        <p class="text-secondary small mb-3">
+            Lors de chaque sauvegarde, une copie de l'archive est envoyée vers votre serveur de partage réseau (NAS, Windows Server, Linux Samba).
+        </p>
 
         <div class="row g-3">
             <div class="col-md-6">
@@ -168,21 +162,19 @@ $derniere        = $historique[0] ?? null;
                        form="form-sauvegardes-reglages" value="<?= $e($v('samba_partage')) ?>">
             </div>
             <div class="col-md-6">
-                <label class="form-label" for="samba_repertoire">Répertoire cible dans le partage</label>
+                <label class="form-label" for="samba_repertoire">Répertoire cible ou Point de montage</label>
                 <input type="text" class="form-control font-monospace" id="samba_repertoire" name="samba_repertoire"
-                       maxlength="190" placeholder="flotteo/archives"
+                       maxlength="190" placeholder="flotteo/archives ou /mnt/sauvegardes"
                        form="form-sauvegardes-reglages" value="<?= $e($v('samba_repertoire')) ?>">
                 <p class="form-hint mb-0">
-                    Chemin <em>relatif</em> au partage. Ce champ a deux lectures : le
-                    sous-dossier de destination pour le binaire <code>smbclient</code>, et
-                    le point de montage local si le partage y est déjà monté — dans ce
-                    dernier cas, aucune authentification SMB n'est nécessaire depuis PHP.
+                    Sous-dossier dans le partage distant (ex : <code>flotteo/archives</code>),
+                    ou chemin absolu vers un point de montage local déjà monté par le système (ex : <code>/mnt/sauvegardes</code>).
                 </p>
             </div>
             <div class="col-md-6">
                 <label class="form-label" for="samba_utilisateur">Utilisateur</label>
                 <input type="text" class="form-control font-monospace" id="samba_utilisateur" name="samba_utilisateur"
-                       maxlength="190" placeholder="vide = accès invité"
+                       maxlength="190" placeholder="vide = accès invité / anonyme"
                        form="form-sauvegardes-reglages" value="<?= $e($v('samba_utilisateur')) ?>">
                 <p class="form-hint mb-0">
                     Un utilisateur vide demande un accès invité / anonyme : aucun
@@ -206,81 +198,48 @@ $derniere        = $historique[0] ?? null;
                 <input type="text" class="form-control font-monospace" id="samba_domaine" name="samba_domaine"
                        maxlength="190" placeholder="WORKGROUP"
                        form="form-sauvegardes-reglages" value="<?= $e($v('samba_domaine')) ?>">
-                <p class="form-hint mb-0">Exclusif du mode identifié : laisser vide en accès invité.</p>
+                <p class="form-hint mb-0">Optionnel : laisser vide en accès invité ou si hors domaine Active Directory.</p>
             </div>
         </div>
 
         <div class="alert alert-<?= $transport !== null ? 'success' : 'warning' ?> mt-3 mb-0">
             <?= $icone($transport !== null ? 'circle-check' : 'triangle-exclamation', 'me-1') ?>
             <?php if ($transport === 'montage'): ?>
-                Transport retenu : <strong>point de montage</strong>
+                Transport actif : <strong>point de montage local</strong>
                 (<?= $e($invite ? 'accès invité' : 'accès identifié') ?>).
-                La copie est une écriture de fichier ordinaire.
+                La copie est une écriture directe dans le répertoire monté.
+            <?php elseif ($transport === 'curl'): ?>
+                Transport actif : <strong>cURL SMB natif</strong>
+                (<?= $e($invite ? 'accès invité' : 'accès identifié') ?>).
+                Transfert réseau direct vers le port 445/139 via le protocole SMB.
             <?php elseif ($transport === 'smbclient'): ?>
-                Transport retenu : <strong>smbclient</strong>
+                Transport actif : <strong>binaire smbclient</strong>
                 (<?= $e($invite ? 'accès invité' : 'accès identifié') ?>).
-                Les identifiants sont transmis par un fichier à durée de vie éphémère,
-                jamais par la ligne de commande.
+                Exécution sécurisée via fichier d'authentification temporaire.
             <?php else: ?>
-                <strong>Aucun moyen d'accès au partage n'est disponible.</strong>
-                <?= $e($alerte) ?>
+                <strong>Partage Samba non disponible ou incomplet.</strong>
+                <?= $e($alerte !== '' ? $alerte : 'Renseignez l\'hôte et le nom du partage, ou configurez un point de montage local.') ?>
             <?php endif; ?>
-        </div>
-    <div class="card-body border-top">
-        <h4 class="mb-3"><?= $icone('folder-open', 'me-2') ?>Clé USB / Disque externe local</h4>
-        <div class="row g-3">
-            <div class="col-md-6">
-                <label class="form-label">Support externe local</label>
-                <label class="form-check form-switch mt-1">
-                    <input class="form-check-input" type="checkbox" id="sauvegarde_usb_actif"
-                           name="sauvegarde_usb_actif" value="1" <?= $usbActif ? 'checked' : '' ?>
-                           form="form-sauvegardes-reglages">
-                    <span class="form-check-label">
-                        <?= $usbActif ? 'Copie automatique vers support USB activée' : 'Copie automatique vers support USB désactivée' ?>
-                    </span>
-                </label>
-                <p class="form-hint mb-0">
-                    Lors de chaque sauvegarde, une copie de l'archive est déposée dans le dossier de destination ou le point de montage du support externe.
-                </p>
-            </div>
-            <div class="col-md-6">
-                <label class="form-label" for="sauvegarde_usb_dossier">Répertoire cible / Point de montage</label>
-                <input type="text" class="form-control font-monospace" id="sauvegarde_usb_dossier" name="sauvegarde_usb_dossier"
-                       maxlength="190" placeholder="/media/usb ou /mnt/usbdrive"
-                       form="form-sauvegardes-reglages" value="<?= $e($v('sauvegarde_usb_dossier') !== '' ? $v('sauvegarde_usb_dossier') : '/media/usb') ?>">
-                <p class="form-hint mb-0">
-                    Chemin d'accès absolu vers le dossier du disque externe ou de la clé USB monté(e) sur le serveur.
-                </p>
-            </div>
-        </div>
-
-        <div class="alert alert-<?= $usbInscriptible ? 'success' : ($usbPresent ? 'warning' : 'secondary') ?> mt-3 mb-0">
-            <?= $icone($usbInscriptible ? 'circle-check' : 'triangle-exclamation', 'me-1') ?>
-            <strong>Statut du support externe :</strong> <?= $e($usbMessage) ?>
         </div>
     </div>
 
     <div class="card-footer d-flex justify-content-end">
         <button type="submit" class="btn btn-primary">
-            <?= $icone('check', 'me-2') ?>Enregistrer
+            <?= $icone('check', 'me-2') ?>Enregistrer les paramètres
         </button>
     </div>
 </form>
 
 <!-- ======================== Test de connexion ======================== -->
 <div class="card-body border-top">
-    <h4 class="mb-3"><?= $icone('server', 'me-2') ?>Épreuves des destinations</h4>
+    <h4 class="mb-3"><?= $icone('server', 'me-2') ?>Épreuve du partage réseau</h4>
     <div class="d-flex flex-wrap align-items-center gap-3">
         <button type="button" class="btn btn-outline-primary" id="bouton-test-samba"
                 data-url="<?= $e($base_url . '/admin/sauvegardes/tester') ?>">
             <?= $icone('network-wired', 'me-2') ?>Tester le partage Samba
         </button>
-        <button type="button" class="btn btn-outline-secondary" id="bouton-test-usb"
-                data-url="<?= $e($base_url . '/admin/sauvegardes/tester-usb') ?>">
-            <?= $icone('folder-open', 'me-2') ?>Tester le répertoire / clé USB
-        </button>
         <span class="text-secondary small">
-            Les valeurs saisies sont éprouvées sans être enregistrées.
+            Les valeurs saisies sont éprouvées directement sans avoir besoin d'enregistrer d'abord.
         </span>
     </div>
 </div>
@@ -302,25 +261,24 @@ $derniere        = $historique[0] ?? null;
                     <th>Date</th>
                     <th class="w-1">Taille</th>
                     <th class="w-1">Contenu</th>
-                    <th>Destinations</th>
+                    <th>Partage Samba</th>
                     <th class="w-1"></th>
                 </tr>
                 </thead>
                 <tbody>
                 <?php foreach ($historique as $s): ?>
                     <?php
-                    $fichier    = (string) $s['fichier'];
-                    $present    = \Services\BackupService::cheminArchive($fichier) !== null;
-                    $statut     = (string) $s['samba_statut'];
-                    $couleur    = ['reussi' => 'bg-green-lt', 'echec' => 'bg-red-lt', 'non_configure' => 'bg-secondary-lt'][$statut] ?? 'bg-secondary-lt';
-                    $usbStatut  = (string) ($s['usb_statut'] ?? 'non_configure');
-                    $couleurUsb = ['reussi' => 'bg-green-lt', 'echec' => 'bg-red-lt', 'non_configure' => 'bg-secondary-lt'][$usbStatut] ?? 'bg-secondary-lt';
+                    $fichier = (string) $s['fichier'];
+                    $present = \Services\BackupService::cheminArchive($fichier) !== null;
+                    $statut  = (string) ($s['samba_statut'] ?? 'non_configure');
+                    $couleur = ['reussi' => 'bg-green-lt', 'echec' => 'bg-red-lt', 'non_configure' => 'bg-secondary-lt'][$statut] ?? 'bg-secondary-lt';
+                    $sambaMsg = trim((string) ($s['samba_message'] ?? ''));
                     ?>
                     <tr>
                         <td>
-                            <span class="font-monospace"><?= $e($fichier) ?></span>
+                            <span class="font-monospace fw-bold"><?= $e($fichier) ?></span>
                             <?php if (!$present): ?>
-                                <div class="small text-secondary">Fichier absent du stockage</div>
+                                <div class="small text-danger">Fichier absent du stockage local</div>
                             <?php endif; ?>
                         </td>
                         <td class="text-nowrap"><?= $e((string) $s['created_at']) ?></td>
@@ -329,34 +287,24 @@ $derniere        = $historique[0] ?? null;
                             <?= (int) $s['tables_dump'] ?> tables · <?= (int) $s['fichiers_inclus'] ?> fichiers
                         </td>
                         <td>
-                            <div class="d-flex flex-column gap-1">
-                                <div>
-                                    <span class="badge <?= $couleur ?> me-1" title="Copie Réseau Samba">SMB: <?= $e(Backup::SAMBA_STATUTS[$statut] ?? $statut) ?></span>
-                                    <span class="badge <?= $couleurUsb ?>" title="Copie Clé USB / Disque externe">USB: <?= $e(Backup::USB_STATUTS[$usbStatut] ?? $usbStatut) ?></span>
-                                </div>
-                                <?php if ($statut === 'echec' && (string) $s['samba_message'] !== ''): ?>
-                                    <div class="small text-secondary"><?= $e((string) $s['samba_message']) ?></div>
-                                <?php endif; ?>
-                                <?php if ($usbStatut === 'echec' && (string) ($s['usb_message'] ?? '') !== ''): ?>
-                                    <div class="small text-danger"><?= $e((string) $s['usb_message']) ?></div>
-                                <?php endif; ?>
+                            <div>
+                                <span class="badge <?= $couleur ?>" title="Externalisation Samba">
+                                    SMB : <?= $e(Backup::SAMBA_STATUTS[$statut] ?? $statut) ?>
+                                </span>
                             </div>
+                            <?php if ($statut === 'echec' && $sambaMsg !== ''): ?>
+                                <div class="small text-danger mt-1"><?= $e($sambaMsg) ?></div>
+                            <?php elseif ($statut === 'non_configure' && $sambaMsg !== ''): ?>
+                                <div class="small text-secondary mt-1"><?= $e($sambaMsg) ?></div>
+                            <?php endif; ?>
                         </td>
                         <td class="cell-actions text-end">
                             <?php if ($present): ?>
-                                <a class="btn btn-sm"
+                                <a class="btn btn-sm btn-outline-secondary"
                                    href="<?= $e($base_url . '/admin/sauvegardes/telecharger?fichier=' . urlencode($fichier)) ?>"
                                    title="Télécharger l'archive sur ce poste">
                                      <?= $icone('download') ?>
                                 </a>
-                                <form method="post" action="<?= $e($base_url . '/admin/sauvegardes/exporter-usb') ?>"
-                                      class="d-inline">
-                                    <?= Csrf::field() ?>
-                                    <input type="hidden" name="id" value="<?= (int) $s['id'] ?>">
-                                    <button type="submit" class="btn btn-sm" title="Copier cette archive vers la clé USB / répertoire externe">
-                                        <?= $icone('folder-open') ?>
-                                    </button>
-                                </form>
                             <?php endif; ?>
                             <form method="post" action="<?= $e($base_url . '/admin/sauvegardes/supprimer') ?>"
                                   class="d-inline"
@@ -379,7 +327,7 @@ $derniere        = $historique[0] ?? null;
 <div class="card-body border-top no-print">
     <h4 class="mb-3"><?= $icone('clock', 'me-2') ?>Exécution planifiée</h4>
     <div class="row g-3">
-        <div classinput-group">
+        <div class="col-lg-7">
             <label class="form-label" for="cron-flotteo-backup">Tâche cron</label>
             <div class="input-group">
                 <input type="text" class="form-control font-monospace text-break" id="cron-flotteo-backup"

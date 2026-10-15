@@ -35,8 +35,6 @@ final class Backup
         'samba_utilisateur'          => '',
         'samba_mot_de_passe'         => '',
         'samba_domaine'              => '',
-        'sauvegarde_usb_actif'       => '0',
-        'sauvegarde_usb_dossier'     => '/media/usb',
     ];
 
     /** Verdict d'externalisation, dans l'ordre d'affichage. */
