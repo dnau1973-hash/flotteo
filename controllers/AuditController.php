@@ -6,6 +6,7 @@ namespace Controllers;
 use Core\Auth;
 use Core\Controller;
 use Core\Flash;
+use Core\Logger;
 use Core\Request;
 use Models\AuditLog;
 use Models\User;
@@ -103,7 +104,13 @@ final class AuditController extends Controller
         exit;
     }
 
-    /** Purge des anciens événements du journal. */
+    /**
+     * Purge manuelle des anciens événements du journal (POST).
+     *
+     * La purge du journal d'audit ne peut pas et ne doit jamais être automatique :
+     * aucune tâche planifiée ni cron ne doit purger cette table. Seul un administrateur
+     * authentifié peut déclencher cette opération d'exception manuellement.
+     */
     public function purger(): void
     {
         $this->guardPost(Auth::ROLE_ADMIN);
@@ -111,7 +118,10 @@ final class AuditController extends Controller
         $jours = max(30, Request::int('jours', 365));
         $supprimes = AuditLog::purge($jours);
 
-        Flash::add('success', "Le journal d'audit a été purgé : $supprimes entrée(s) de plus de $jours jours supprimée(s).");
+        $nomAdmin = Auth::user()['nom'] ?? ('Utilisateur #' . (Auth::id() ?? 0));
+        Logger::info("Purge manuelle du journal d'audit effectuée par $nomAdmin : $supprimes entrées supprimées (conservation $jours jours)");
+
+        Flash::add('success', "Le journal d'audit a été purgé manuellement : $supprimes entrée(s) de plus de $jours jours supprimée(s).");
         $this->redirect('/admin/journal');
     }
 }

@@ -126,9 +126,11 @@ $derniere        = $historique[0] ?? null;
                     <span class="input-group-text">jours</span>
                 </div>
                 <p class="form-hint mb-0">
-                    À chaque exécution planifiée, les archives locales plus anciennes que ce
-                    délai sont supprimées du disque, et les lignes d'historique sans
-                    fichier sont retirées.
+                    À chaque exécution planifiée, seules les anciennes archives ZIP locales plus anciennes que ce
+                    délai sont supprimées du disque.
+                    <span class="text-body fw-bold d-block mt-1">
+                        <?= $icone('shield-halved', 'me-1 text-primary') ?>Important : le journal d'audit et les données en base ne font l'objet d'aucune purge automatique.
+                    </span>
                 </p>
             </div>
         </div>
@@ -548,7 +550,15 @@ $derniere        = $historique[0] ?? null;
                                     <div class="col-md-3">
                                         <div class="p-2 border rounded bg-body-tertiary text-center h-100">
                                             <span class="badge bg-orange text-white mb-1">Étape 4</span>
-                                            <div>Purge locale des archives dépassant la durée de rétention.</div>
+                                            <div>Purge locale des archives ZIP expirées (le journal d'audit reste intact).</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="alert alert-secondary mt-3 mb-0 small">
+                                    <div class="d-flex align-items-center">
+                                        <div><?= $icone('shield-halved', 'me-2 fs-2 text-primary') ?></div>
+                                        <div>
+                                            <strong>Règle fondamentale de traçabilité :</strong> La purge du journal d'audit <strong>ne peut pas et ne doit jamais être automatique</strong>. Toutes les actions, modifications et suppressions sont conservées indéfiniment en base de données. Aucune tâche cron ni tâche planifiée ne purge le journal d'audit.
                                         </div>
                                     </div>
                                 </div>

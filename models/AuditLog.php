@@ -388,7 +388,11 @@ final class AuditLog
     }
 
     /**
-     * Purge les anciens logs au-delà d'un nombre de jours.
+     * Purge manuelle des anciens logs au-delà d'un nombre de jours.
+     *
+     * IMPORTANT : La purge du journal d'audit ne peut pas et ne doit jamais être
+     * automatique. Aucune tâche cron ni automatisation ne doit appeler cette méthode.
+     * La traçabilité doit rester permanente sauf action manuelle d'un administrateur.
      */
     public static function purge(int $jours = 365): int
     {

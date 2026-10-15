@@ -62,7 +62,7 @@ $calculerPages = static function (int $actuelle, int $total): array {
                 <?= $icone('file-arrow-down', 'me-1') ?>Exporter CSV
             </a>
             <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#modal-purger-journal">
-                <?= $icone('trash-can', 'me-1') ?>Purger...
+                <?= $icone('trash-can', 'me-1') ?>Purger manuellement...
             </button>
         </div>
     </div>
@@ -411,13 +411,22 @@ $calculerPages = static function (int $actuelle, int $total): array {
                 <?= Csrf::field() ?>
                 <div class="modal-header">
                     <h5 class="modal-title text-danger">
-                        <?= $icone('triangle-exclamation', 'me-2') ?>Purger l'historique d'audit
+                        <?= $icone('triangle-exclamation', 'me-2') ?>Purge manuelle du journal d'audit
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
                 </div>
                 <div class="modal-body">
+                    <div class="alert alert-warning mb-3">
+                        <div class="d-flex">
+                            <div><?= $icone('shield-halved', 'me-2 fs-2') ?></div>
+                            <div>
+                                <strong>Opération d'exception strictement manuelle :</strong><br>
+                                Conformément aux principes fondamentaux de traçabilité et de conformité, la purge du journal d'audit <strong>ne peut pas et ne doit jamais être automatique</strong>. Aucune tâche planifiée (cron) ne supprime ces enregistrements.
+                            </div>
+                        </div>
+                    </div>
                     <p class="mb-3">
-                        Cette opération supprimera définitivement les événements les plus anciens du journal d'audit afin d'alléger la base de données.
+                        Cette opération manuelle supprimera définitivement les événements les plus anciens du journal d'audit afin d'alléger la base de données.
                     </p>
                     <div class="mb-3">
                         <label class="form-label required" for="purge-jours">Conserver uniquement les logs des :</label>

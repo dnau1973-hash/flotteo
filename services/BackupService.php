@@ -452,8 +452,8 @@ final class BackupService
             }
         }
 
-        // Lignes d'historique sans archive : elles occuperaient l'historique
-        // d'un fichier qui n'existe plus et fausseraient le décompte affiché.
+        // Entrées de catalogue sans archive ZIP : elles occuperaient la liste
+        // d'un fichier qui n'existe plus sur le disque.
         $orphelines = self::purgerHistoriqueOrphelin();
 
         $message = $supprimees === 0
@@ -466,8 +466,8 @@ final class BackupService
                 SambaClient::poids($liberes),
                 $liberes > 0 ? 's' : '',
                 $jours,
-                $orphelines > 0 ? sprintf(', %d ligne%s d\'historique orpheline%s retirée%s', $orphelines,
-                    $orphelines > 1 ? 's' : '', $orphelines > 1 ? 's' : '', $orphelines > 1 ? 's' : '') : ''
+                $orphelines > 0 ? sprintf(', %d entrée%s de catalogue d\'archive retirée%s', $orphelines,
+                    $orphelines > 1 ? 's' : '', $orphelines > 1 ? 's' : '') : ''
             );
 
         return ['ok' => true, 'message' => $message, 'supprimees' => $supprimees, 'liberes' => $liberes];
