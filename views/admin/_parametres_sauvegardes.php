@@ -49,6 +49,9 @@ $derniere        = $historique[0] ?? null;
         </div>
 
         <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#modal-aide-sauvegardes">
+                <?= $icone('book', 'me-2') ?>Documentation & Guide
+            </button>
             <form method="post" action="<?= $e($base_url . '/admin/sauvegardes/lancer') ?>" class="d-inline">
                 <?= Csrf::field() ?>
                 <button type="submit" class="btn btn-primary">
@@ -133,7 +136,12 @@ $derniere        = $historique[0] ?? null;
 
     <div class="card-body border-top">
         <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
-            <h4 class="mb-0"><?= $icone('network-wired', 'me-2') ?>Partage réseau Samba (SMB/CIFS)</h4>
+            <div class="d-flex align-items-center gap-2">
+                <h4 class="mb-0"><?= $icone('network-wired', 'me-2') ?>Partage réseau Samba (SMB/CIFS)</h4>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modal-aide-sauvegardes" title="Documentation et aide à la configuration">
+                    <?= $icone('circle-info', 'me-1') ?>Aide
+                </button>
+            </div>
             <label class="form-check form-switch mb-0">
                 <input class="form-check-input" type="checkbox" id="sauvegarde_partage_actif"
                        name="sauvegarde_partage_actif" value="1" <?= $partageActif ? 'checked' : '' ?>
@@ -364,3 +372,245 @@ $derniere        = $historique[0] ?? null;
         </div>
     </div>
 </div>
+
+<!-- ================= Modal : Documentation & Guide ================= -->
+<div class="modal modal-blur fade" id="modal-aide-sauvegardes" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title d-flex align-items-center">
+                    <?= $icone('book', 'me-2') ?>Documentation & Guide d'Utilisation : Sauvegardes Flotteo
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="row g-4">
+                    <!-- 1. Vue d'ensemble -->
+                    <div class="col-12">
+                        <div class="card border">
+                            <div class="card-header bg-light">
+                                <h4 class="card-title text-primary mb-0">
+                                    <?= $icone('box-archive', 'me-2') ?>1. Principe et Contenu d'une Sauvegarde
+                                </h4>
+                            </div>
+                            <div class="card-body">
+                                <p>
+                                    Le système de sauvegarde de <strong>Flotteo</strong> génère une archive compressée autonome au format <code>.zip</code>, nommée sous la forme <code>flotteo_backup_AAAA-MM-JJ_HHMM.zip</code>.
+                                </p>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <div class="border rounded p-3 bg-body-tertiary h-100">
+                                            <div class="fw-bold mb-1 text-dark">
+                                                <?= $icone('database', 'me-2 text-azure') ?>Base de données (<code>donnees/flotteo.sql</code>)
+                                            </div>
+                                            <div class="small text-secondary">
+                                                Export transactionnel SQL intégral comprenant la structure (<code>CREATE TABLE</code>) et les données (<code>INSERT</code>) de toutes les tables applicatives : véhicules, entretiens, contrôles techniques, sinistres, pièces jointes, utilisateurs, alertes, relevés kilométriques et journal d'audit.
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="border rounded p-3 bg-body-tertiary h-100">
+                                            <div class="fw-bold mb-1 text-dark">
+                                                <?= $icone('folder-open', 'me-2 text-warning') ?>Documents & Fichiers (<code>uploads/</code>)
+                                            </div>
+                                            <div class="small text-secondary">
+                                                Copie conforme de l'ensemble des documents téléversés dans <code>public/uploads/</code> : cartes grises, procès-verbaux de contrôle technique, devis, factures, photos d'incidents et avatars.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="alert alert-info mt-3 mb-0">
+                                    <div class="d-flex">
+                                        <div><?= $icone('shield-halved', 'me-2 fs-2') ?></div>
+                                        <div>
+                                            <strong>Stockage local sécurisé & Contrôle d'intégrité SHA-256 :</strong>
+                                            Les archives sont générées dans <code>storage/backups/</code> (en dehors de la racine web Apache). Pour chaque archive, une empreinte cryptographique SHA-256 est calculée et mémorisée. Vous pouvez à tout moment cliquer sur l'icône <strong>Vérifier</strong> dans l'historique pour vous assurer que le fichier n'a pas été corrompu ou altéré.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Partage Réseau Samba -->
+                    <div class="col-12">
+                        <div class="card border">
+                            <div class="card-header bg-light">
+                                <h4 class="card-title text-primary mb-0">
+                                    <?= $icone('network-wired', 'me-2') ?>2. Configuration du Partage Réseau Samba (SMB/CIFS)
+                                </h4>
+                            </div>
+                            <div class="card-body">
+                                <p>
+                                    L'externalisation réseau permet d'appliquer la règle de sauvegarde <strong>3-2-1</strong> en transférant automatiquement chaque archive vers un serveur distant (NAS QNAP, Synology, Windows Server ou serveur Linux Samba).
+                                </p>
+                                <div class="table-responsive">
+                                    <table class="table table-bordered align-middle">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th style="width:28%">Paramètre</th>
+                                                <th>Description & Exemple</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td class="fw-bold">Hôte ou adresse IP</td>
+                                                <td>
+                                                    Adresse IP ou nom de machine du serveur de partage.<br>
+                                                    <span class="text-secondary small">Exemple : <code>208.11.211.82</code> ou <code>nas-sauvegardes.entreprise.local</code></span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="fw-bold">
+                                                    Nom du partage
+                                                    <span class="badge bg-primary-lt ms-1">Essentiel</span>
+                                                </td>
+                                                <td>
+                                                    <strong>Nom exact du dossier partagé SMB racine</strong> configuré sur votre NAS ou serveur.<br>
+                                                    <span class="text-danger small fw-semibold">Attention :</span> Ne mettez pas de barre oblique (<code>/</code> ou <code>\</code>).<br>
+                                                    <span class="text-secondary small">Exemple : pour <code>\\208.11.211.82\Backup-Dev</code>, indiquez simplement <code>Backup-Dev</code>.</span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="fw-bold">Répertoire cible</td>
+                                                <td>
+                                                    Sous-dossier facultatif <em>à l'intérieur</em> du partage distant.<br>
+                                                    <span class="text-success small fw-semibold">Recommandation :</span> Laissez ce champ <strong>vide</strong> pour déposer les sauvegardes directement à la racine du partage. Renseignez un nom (ex : <code>flotteo</code>) uniquement si vous souhaitez que les archives soient rangées dans un sous-dossier.
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="fw-bold">Utilisateur & Mot de passe</td>
+                                                <td>
+                                                    Identifiants du compte utilisateur ayant les droits d'écriture sur le partage.<br>
+                                                    <span class="text-secondary small">Pour des raisons de sécurité, le mot de passe n'est jamais réaffiché à l'écran. Laissez le champ vide lors des modifications pour conserver le mot de passe existant.</span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="fw-bold">Domaine / Workgroup</td>
+                                                <td>
+                                                    Groupe de travail Windows ou domaine Active Directory.<br>
+                                                    <span class="text-secondary small">Exemple : <code>WORKGROUP</code> ou le nom de votre domaine d'entreprise (ex : <code>trelidis-dnsi</code>). Laissez vide si non applicable.</span>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div class="alert alert-warning mb-0">
+                                    <div class="fw-bold mb-1">
+                                        <?= $icone('triangle-exclamation', 'me-2') ?>Validation et Test de connexion
+                                    </div>
+                                    <ol class="mb-0 ps-3 small">
+                                        <li>Basculez l'interrupteur <strong>« Copie vers le partage activée »</strong> en haut de la carte.</li>
+                                        <li>Renseignez vos paramètres et cliquez d'abord sur <strong>« Enregistrer les réglages »</strong>.</li>
+                                        <li>Cliquez sur le bouton <strong>« Tester le partage Samba »</strong> pour valider la communication immédiate avec votre NAS (le test utilise le protocole moderne SMB2/SMB3).</li>
+                                    </ol>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. Planification Cron -->
+                    <div class="col-12">
+                        <div class="card border">
+                            <div class="card-header bg-light">
+                                <h4 class="card-title text-primary mb-0">
+                                    <?= $icone('clock', 'me-2') ?>3. Planification Automatique Quotidienne (CRON)
+                                </h4>
+                            </div>
+                            <div class="card-body">
+                                <p>
+                                    Pour assurer des sauvegardes automatiques sans intervention humaine, ajoutez la ligne suivante dans la table crontab du serveur (via <code>crontab -e</code> avec le compte utilisateur web ou root) :
+                                </p>
+                                <div class="bg-dark text-light p-3 rounded font-monospace small mb-3">
+                                    30 2 * * * /usr/bin/php <?= $e(dirname(__DIR__, 2)) ?>/bin/backup.php > /dev/null 2>&1
+                                </div>
+                                <div class="fw-bold mb-2">Déroulement nocturne automatique (chaque jour à 02 h 30) :</div>
+                                <div class="row g-2 small">
+                                    <div class="col-md-3">
+                                        <div class="p-2 border rounded bg-body-tertiary text-center h-100">
+                                            <span class="badge bg-blue text-white mb-1">Étape 1</span>
+                                            <div>Export SQL complet + compression ZIP des uploads.</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="p-2 border rounded bg-body-tertiary text-center h-100">
+                                            <span class="badge bg-green text-white mb-1">Étape 2</span>
+                                            <div>Calcul de l'empreinte SHA-256 et inscription dans l'historique.</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="p-2 border rounded bg-body-tertiary text-center h-100">
+                                            <span class="badge bg-purple text-white mb-1">Étape 3</span>
+                                            <div>Téléversement automatique sur le NAS Samba (si actif).</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="p-2 border rounded bg-body-tertiary text-center h-100">
+                                            <span class="badge bg-orange text-white mb-1">Étape 4</span>
+                                            <div>Purge locale des archives dépassant la durée de rétention.</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4. Procédure de Restauration -->
+                    <div class="col-12">
+                        <div class="card border">
+                            <div class="card-header bg-light">
+                                <h4 class="card-title text-primary mb-0">
+                                    <?= $icone('wrench', 'me-2') ?>4. Procédure de Restauration Complète (Plan de Secours)
+                                </h4>
+                            </div>
+                            <div class="card-body">
+                                <p class="mb-3">
+                                    En cas de sinistre, de panne matérielle ou de réinstallation du serveur, suivez cette procédure pour restaurer l'application à l'identique :
+                                </p>
+                                <div class="list-group list-group-numbered">
+                                    <div class="list-group-item">
+                                        <div class="fw-bold">Récupérer l'archive de sauvegarde</div>
+                                        <div class="text-secondary small">
+                                            Téléchargez le fichier <code>.zip</code> depuis l'interface Flotteo (bouton Télécharger de l'historique), ou récupérez-le sur votre partage réseau NAS dans <code>\\208.11.211.82\Backup-Dev</code>.
+                                        </div>
+                                    </div>
+                                    <div class="list-group-item">
+                                        <div class="fw-bold">Décompresser l'archive dans un dossier temporaire</div>
+                                        <div class="bg-dark text-light p-2 rounded font-monospace small mt-1">
+                                            mkdir -p /tmp/flotteo_restore && unzip -o flotteo_backup_AAAA-MM-JJ_HHMM.zip -d /tmp/flotteo_restore/
+                                        </div>
+                                    </div>
+                                    <div class="list-group-item">
+                                        <div class="fw-bold">Restaurer la base de données MySQL / MariaDB</div>
+                                        <div class="bg-dark text-light p-2 rounded font-monospace small mt-1">
+                                            mysql -u root -p flotteo < /tmp/flotteo_restore/donnees/flotteo.sql
+                                        </div>
+                                    </div>
+                                    <div class="list-group-item">
+                                        <div class="fw-bold">Restaurer les documents et fichiers téléversés</div>
+                                        <div class="bg-dark text-light p-2 rounded font-monospace small mt-1">
+                                            cp -r /tmp/flotteo_restore/uploads/* /var/www/flotteo/public/uploads/
+                                        </div>
+                                    </div>
+                                    <div class="list-group-item">
+                                        <div class="fw-bold">Rétablir les droits d'accès web</div>
+                                        <div class="bg-dark text-light p-2 rounded font-monospace small mt-1">
+                                            chown -R www-data:www-data /var/www/flotteo/public/uploads /var/www/flotteo/storage
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-primary ms-auto" data-bs-dismiss="modal">
+                    <?= $icone('check', 'me-2') ?>Fermer la documentation
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
