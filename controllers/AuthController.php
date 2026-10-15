@@ -10,6 +10,7 @@ use Core\Flash;
 use Core\Logger;
 use Core\Request;
 use Core\View;
+use Models\AuditLog;
 use Models\User;
 
 /**
@@ -45,7 +46,26 @@ final class AuthController extends Controller
             $this->redirect('/login');
         }
 
-        Flash::add('success', 'Bienvenue sur Flotteo, ' . (Auth::user()['nom'] ?? 'utilisateur') . '.');
+        $user = Auth::user();
+        $statusMdp = User::passwordExpirationStatus($user);
+
+        if ($statusMdp['expire']) {
+            if ($statusMdp['expire_par_delai']) {
+                Flash::add('warning', 'Votre mot de passe a expiré (validité maximale de 6 mois). Vous devez obligatoirement le renouveler pour accéder à l\'application.');
+            } else {
+                Flash::add('warning', 'Pour des raisons de sécurité, vous devez renouveler votre mot de passe pour continuer.');
+            }
+            $this->redirect('/changer-mot-de-passe-requis');
+        }
+
+        // Rappel un mois avant la date d'échéance semestrielle :
+        if ($statusMdp['en_rappel']) {
+            $jours = $statusMdp['jours_restants'];
+            $dateFin = $statusMdp['date_expiration'] ? $statusMdp['date_expiration']->format('d/m/Y') : '';
+            Flash::add('warning', "Rappel de sécurité : votre mot de passe expire dans {$jours} jour(s) (le {$dateFin}). Pensez à le renouveler prochainement depuis votre profil.");
+        }
+
+        Flash::add('success', 'Bienvenue sur Flotteo, ' . ($user['nom'] ?? 'utilisateur') . '.');
         $this->redirect('/dashboard');
     }
 
@@ -61,7 +81,13 @@ final class AuthController extends Controller
     public function profile(): void
     {
         $this->guard();
-        $this->render('auth/profil', ['utilisateur' => Auth::user(), 'base_url' => $this->baseUrl()]);
+        $user = Auth::user();
+        $statusMdp = User::passwordExpirationStatus($user);
+        $this->render('auth/profil', [
+            'utilisateur' => $user,
+            'status_mdp'  => $statusMdp,
+            'base_url'    => $this->baseUrl(),
+        ]);
     }
 
     /**
@@ -137,8 +163,28 @@ final class AuthController extends Controller
                 Flash::add('danger', 'Le mot de passe actuel est incorrect.');
                 $this->redirect('/profil');
             }
-            if (strlen($nouveau) < 8) {
-                Flash::add('danger', 'Le nouveau mot de passe doit contenir au moins 8 caractères.');
+            if (mb_strlen($nouveau) < 10) {
+                Flash::add('danger', 'Le nouveau mot de passe doit comporter au moins 10 caractères.');
+                $this->redirect('/profil');
+            }
+            if (!preg_match('/[a-z]/', $nouveau)) {
+                Flash::add('danger', 'Le mot de passe doit comporter au moins une lettre minuscule.');
+                $this->redirect('/profil');
+            }
+            if (!preg_match('/[A-Z]/', $nouveau)) {
+                Flash::add('danger', 'Le mot de passe doit comporter au moins une lettre majuscule.');
+                $this->redirect('/profil');
+            }
+            if (!preg_match('/[0-9]/', $nouveau)) {
+                Flash::add('danger', 'Le mot de passe doit comporter au moins un chiffre.');
+                $this->redirect('/profil');
+            }
+            if (!preg_match('/[^a-zA-Z0-9]/', $nouveau)) {
+                Flash::add('danger', 'Le mot de passe doit comporter au moins un caractère spécial.');
+                $this->redirect('/profil');
+            }
+            if ($ancien !== '' && $ancien === $nouveau) {
+                Flash::add('danger', 'Le nouveau mot de passe doit être différent de l\'ancien mot de passe.');
                 $this->redirect('/profil');
             }
             if ($nouveau !== $confirmation) {
@@ -146,13 +192,111 @@ final class AuthController extends Controller
                 $this->redirect('/profil');
             }
             User::updatePassword($id, $nouveau);
+            Auth::refresh();
         }
 
         // Après le mot de passe : un changement de mot de passe raté ne doit pas
         // laisser une image déposée jamais associée.
         $this->appliquerAvatar($id, $avatar, $suppression, (string) ($user['avatar'] ?? ''));
 
+        AuditLog::modification(
+            'utilisateur',
+            $id,
+            null,
+            "Mise à jour du profil personnel ($nom)",
+            [
+                'nom'                  => $nom,
+                'email'                => $email,
+                'mot_de_passe_modifie' => ($nouveau !== ''),
+                'avatar_modifie'       => ($avatar !== null || $suppression),
+            ]
+        );
+
         Flash::add('success', 'Profil mis à jour.');
         $this->redirect('/profil');
+    }
+
+    /** Écran imposé de renouvellement du mot de passe. */
+    public function formForcePasswordChange(): void
+    {
+        $this->guard();
+        $user = Auth::user();
+        $statusMdp = User::passwordExpirationStatus($user);
+        if (!$statusMdp['expire']) {
+            $this->redirect('/dashboard');
+        }
+
+        (new View())->render('auth/force_password_change', [
+            'utilisateur' => $user,
+            'status_mdp'  => $statusMdp,
+            'base_url'    => $this->baseUrl(),
+        ], false);
+    }
+
+    /** Traitement du renouvellement forcé du mot de passe (POST). */
+    public function submitForcePasswordChange(): void
+    {
+        Csrf::verifyOrFail();
+        $this->guard();
+        $user = Auth::user();
+        $id = (int) $user['id'];
+
+        $actuel       = (string) Request::input('password_actuel', '');
+        $nouveau      = (string) Request::input('password_nouveau', '');
+        $confirmation = (string) Request::input('password_confirmation', '');
+
+        $erreurs = [];
+
+        // 1. Vérification du mot de passe actuel
+        if (!password_verify($actuel, (string) $user['password_hash'])) {
+            $erreurs[] = 'Le mot de passe actuel est incorrect.';
+        }
+
+        // 2. Règles de complexité et de longueur
+        if (mb_strlen($nouveau) < 10) {
+            $erreurs[] = 'Le nouveau mot de passe doit comporter au moins 10 caractères.';
+        }
+        if (!preg_match('/[a-z]/', $nouveau)) {
+            $erreurs[] = 'Le mot de passe doit comporter au moins une lettre minuscule.';
+        }
+        if (!preg_match('/[A-Z]/', $nouveau)) {
+            $erreurs[] = 'Le mot de passe doit comporter au moins une lettre majuscule.';
+        }
+        if (!preg_match('/[0-9]/', $nouveau)) {
+            $erreurs[] = 'Le mot de passe doit comporter au moins un chiffre.';
+        }
+        if (!preg_match('/[^a-zA-Z0-9]/', $nouveau)) {
+            $erreurs[] = 'Le mot de passe doit comporter au moins un caractère spécial.';
+        }
+
+        // 3. Différent de l'ancien
+        if ($actuel !== '' && $actuel === $nouveau) {
+            $erreurs[] = 'Le nouveau mot de passe doit être différent de l\'ancien mot de passe.';
+        }
+
+        // 4. Confirmation
+        if ($nouveau !== $confirmation) {
+            $erreurs[] = 'La confirmation du nouveau mot de passe ne correspond pas.';
+        }
+
+        if ($erreurs !== []) {
+            Flash::add('danger', implode(' ', $erreurs));
+            $this->redirect('/changer-mot-de-passe-requis');
+        }
+
+        // Mise à jour du mot de passe et réinitialisation de l'exigence
+        User::updatePasswordAndClearFlag($id, $nouveau);
+        Auth::refresh();
+
+        // Traçabilité dans le journal d'audit
+        AuditLog::modification(
+            'utilisateur',
+            $id,
+            null,
+            "Renouvellement obligatoire du mot de passe effectué avec succès (" . ($user['email'] ?? '') . ")"
+        );
+
+        Flash::add('success', 'Votre mot de passe a été mis à jour avec succès. Bienvenue sur Flotteo !');
+        $this->redirect('/dashboard');
     }
 }

@@ -98,6 +98,12 @@ final class Auth
         return $u;
     }
 
+    public static function refresh(): ?array
+    {
+        self::$user = null;
+        return self::user();
+    }
+
     public static function check(): bool
     {
         return self::user() !== null;
@@ -139,6 +145,17 @@ final class Auth
             }
             Flash::add('warning', 'Veuillez vous connecter pour accéder à l\'application.');
             Response::redirect(Url::to('/login'));
+        }
+
+        $u = self::user();
+        if ($u !== null && ((int) ($u['doit_changer_mot_de_passe'] ?? 0) === 1 || \Models\User::isPasswordExpired($u))) {
+            $currentPath = Router::currentPath();
+            if ($currentPath !== '/changer-mot-de-passe-requis' && $currentPath !== '/logout') {
+                if (Request::isJson()) {
+                    Response::json(['success' => false, 'message' => 'Changement de mot de passe obligatoire.'], 403);
+                }
+                Response::redirect(Url::to('/changer-mot-de-passe-requis'));
+            }
         }
     }
 

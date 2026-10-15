@@ -15,7 +15,12 @@ use Core\Icon;
 $e = static fn (?string $v): string => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
 $formater = static function (string $champ, mixed $valeur) use ($def, $e): string {
     if ($champ === 'categorie') {
-        return '<span class="badge bg-blue-lt">' . $e(ucfirst((string) $valeur)) . '</span>';
+        $labels = $def['categories_labels'] ?? [];
+        $libelleCat = $labels[(string) $valeur] ?? ucfirst((string) $valeur);
+        return '<span class="badge bg-blue-lt">' . $e($libelleCat) . '</span>';
+    }
+    if ($champ === 'code') {
+        return '<span class="badge bg-secondary-lt font-monospace">' . $e((string) $valeur) . '</span>';
     }
     if ($champ === 'logo') {
         if (!empty($valeur)) {
@@ -150,7 +155,11 @@ $formater = static function (string $champ, mixed $valeur) use ($def, $e): strin
                         <?php elseif ($champ === 'categorie'): ?>
                             <select class="form-select" id="d_categorie" name="categorie">
                                 <?php foreach ($def['categories'] as $c): ?>
-                                    <option value="<?= $e($c) ?>"><?= $e(ucfirst($c)) ?></option>
+                                    <?php
+                                    $cVal = is_array($c) ? ($c['code'] ?? '') : (string) $c;
+                                    $cNom = $def['categories_labels'][$cVal] ?? (is_array($c) ? ($c['nom'] ?? ucfirst($cVal)) : ucfirst($cVal));
+                                    ?>
+                                    <option value="<?= $e($cVal) ?>"><?= $e($cNom) ?></option>
                                 <?php endforeach; ?>
                             </select>
 
@@ -167,6 +176,13 @@ $formater = static function (string $champ, mixed $valeur) use ($def, $e): strin
                             </div>
                             <input type="file" class="form-control" id="d_<?= $e($champ) ?>" name="<?= $e($champ) ?>" accept="image/png,image/jpeg,image/webp">
                             <div class="form-text">Formats acceptés : PNG, JPG, WebP (8 Mo maximum).</div>
+
+                        <?php elseif ($champ === 'code'): ?>
+                            <input type="text" class="form-control font-monospace"
+                                   id="d_code" name="code" maxlength="50"
+                                   placeholder="ex: climatisation"
+                                   <?= in_array($champ, $def['requis'], true) ? 'required' : '' ?>>
+                            <div class="form-text">Lettres minuscules sans accent, chiffres, tirets ou underscores.</div>
 
                         <?php else: ?>
                             <input type="<?= $champ === 'contact_email' ? 'email' : 'text' ?>" class="form-control"
@@ -270,7 +286,24 @@ $formater = static function (string $champ, mixed $valeur) use ($def, $e): strin
                         reader.readAsDataURL(this.files[0]);
                     }
                 });
-            }
         });
+
+        var inputNom = document.getElementById('d_nom');
+        var inputCode = document.getElementById('d_code');
+        if (inputNom && inputCode && '<?= $e($type) ?>' === 'categories_intervention') {
+            inputNom.addEventListener('input', function () {
+                var modaleId = document.getElementById('dictionnaire-id');
+                if (modaleId && modaleId.value === '0' && (!inputCode.dataset.touched || inputCode.value === '')) {
+                    inputCode.value = this.value
+                        .toLowerCase()
+                        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                        .replace(/[^a-z0-9]+/g, '_')
+                        .replace(/^_+|_+$/g, '');
+                }
+            });
+            inputCode.addEventListener('input', function () {
+                this.dataset.touched = '1';
+            });
+        }
     });
 </script>

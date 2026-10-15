@@ -30,6 +30,7 @@
     var champEmail    = document.getElementById('u_email');
     var champRole     = document.getElementById('u_role');
     var champActif    = document.getElementById('u_actif');
+    var champDoitChangerMdp = document.getElementById('u_doit_changer_mot_de_passe');
     var champMdp      = document.getElementById('u_password');
     var aideMdp       = document.getElementById('aide-mdp');
     var champId       = document.getElementById('utilisateur-id');
@@ -79,6 +80,7 @@
         titreModale.textContent = 'Nouvel utilisateur';
         champMdp.required = true;
         aideMdp.textContent = 'Obligatoire à la création (8 caractères minimum).';
+        if (champDoitChangerMdp) { champDoitChangerMdp.checked = false; }
 
         if (caseSupprimer) { caseSupprimer.checked = false; }
         if (blocSupprimer) { blocSupprimer.hidden = true; }
@@ -158,6 +160,9 @@
         champEmail.value = declencheur.getAttribute('data-email') || '';
         champRole.value = declencheur.getAttribute('data-role') || '';
         champActif.checked = declencheur.getAttribute('data-actif') === '1';
+        if (champDoitChangerMdp) {
+            champDoitChangerMdp.checked = declencheur.getAttribute('data-doit-changer-mot-de-passe') === '1';
+        }
         champMdp.required = false;
         aideMdp.textContent = 'Laisser vide pour conserver le mot de passe actuel.';
 

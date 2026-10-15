@@ -116,6 +116,18 @@ final class MileageController extends Controller
 
         try {
             $estVerrouille = Mileage::toggleVerrou($vehiculeId, $periode);
+
+            $vehicule = Vehicle::find($vehiculeId);
+            $immat = $vehicule['immatriculation'] ?? null;
+            $actionLibelle = $estVerrouille ? 'Verrouillage' : 'Déverrouillage';
+            AuditLog::modification(
+                'kilometrage',
+                $vehiculeId,
+                $immat,
+                "{$actionLibelle} du relevé kilométrique {$periode}" . ($immat ? " ($immat)" : ''),
+                ['periode' => $periode, 'verrouille' => $estVerrouille]
+            );
+
             $this->ok('État du verrouillage mis à jour.', ['verrouille' => $estVerrouille]);
         } catch (\PDOException $e) {
             Logger::error('Bascule du verrou odomètre impossible', $e);

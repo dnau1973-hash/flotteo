@@ -37,10 +37,13 @@ require FLOTTEO_ROOT . '/core/Response.php';
 require FLOTTEO_ROOT . '/core/Auth.php';
 require FLOTTEO_ROOT . '/core/Csrf.php';
 require FLOTTEO_ROOT . '/core/Flash.php';
+require FLOTTEO_ROOT . '/models/AuditLog.php';
 require FLOTTEO_ROOT . '/models/Backup.php';
 require FLOTTEO_ROOT . '/services/BackupService.php';
 require FLOTTEO_ROOT . '/services/SambaClient.php';
 
+use Core\Logger;
+use Models\AuditLog;
 use Models\Backup;
 use Services\BackupService;
 use Services\SambaClient;
@@ -133,6 +136,22 @@ try {
         } elseif ($samba === 'reussi') {
             $sortie('Copie réseau Samba effectuée.');
         }
+
+        $nomArchive = (string) ($resultat['archive'] ?? basename((string) ($resultat['chemin'] ?? 'archive.zip')));
+        AuditLog::creation(
+            'sauvegarde',
+            null,
+            null,
+            "Sauvegarde planifiée (CRON) : $nomArchive" . ($samba === 'reussi' ? ' (copie Samba réussie)' : ''),
+            [
+                'archive'       => $nomArchive,
+                'tables'        => (int) ($resultat['tables'] ?? 0),
+                'fichiers'      => (int) ($resultat['fichiers'] ?? 0),
+                'taille'        => (int) ($resultat['taille'] ?? 0),
+                'samba'         => $samba,
+                'samba_message' => $resultat['samba_message'] ?? null,
+            ]
+        );
     } else {
         $sortie('Rotation seule : aucune archive produite.');
     }
@@ -141,6 +160,16 @@ try {
         $purge = BackupService::purger();
         $sortie($purge['message']);
         $code = $code !== 0 ? $code : ($purge['ok'] ? 0 : 1);
+
+        if ($purge['ok'] && (int) ($purge['supprimees'] ?? 0) > 0) {
+            AuditLog::suppression(
+                'sauvegarde',
+                null,
+                null,
+                "Rotation planifiée des sauvegardes (CRON) : " . $purge['message'],
+                $purge
+            );
+        }
     } else {
         $sortie('Rotation désactivée pour cette exécution.');
     }

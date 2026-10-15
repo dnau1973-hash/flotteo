@@ -12,6 +12,7 @@ use Core\Logger;
 use Core\Mailer;
 use Core\Request;
 use Core\SmtpClient;
+use Models\AuditLog;
 use Models\Backup;
 
 /**
@@ -235,6 +236,21 @@ final class ParamController extends Controller
                 $this->ecrire($cle, $valeur);
                 $ecrites[$cle] = $valeur;
             }
+
+            $libelleSection = self::SECTIONS[$section]['libelle'] ?? $section;
+            $detailsAudit = $ecrites;
+            foreach (['smtp_password', 'samba_mot_de_passe'] as $cleSecrete) {
+                if (isset($detailsAudit[$cleSecrete])) {
+                    $detailsAudit[$cleSecrete] = $detailsAudit[$cleSecrete] !== '' ? '********' : '';
+                }
+            }
+            AuditLog::modification(
+                'parametre',
+                null,
+                null,
+                "Modification des paramètres « {$libelleSection} »",
+                $detailsAudit
+            );
 
             Flash::add('success', 'Paramètres « ' . self::SECTIONS[$section]['libelle'] . ' » enregistrés.');
         } catch (\PDOException $e) {
@@ -544,6 +560,7 @@ final class ParamController extends Controller
         'entites',
         'loueurs',
         'lieux',
+        'categories_intervention',
         'types_intervention',
         'vehicules',
         'maintenances',
@@ -653,6 +670,14 @@ final class ParamController extends Controller
                 $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
             }
 
+            AuditLog::suppression(
+                'parametre',
+                null,
+                null,
+                "Vidange intégrale de la table '$table' ($lignes ligne(s) supprimée(s))",
+                ['table' => $table, 'lignes_supprimees' => $lignes]
+            );
+
             Flash::add('success', "Table '$table' vidée avec succès. $lignes lignes supprimées.");
         } catch (\Throwable $e) {
             Logger::error('Erreur lors de la vidange de la table ' . $table, $e);
@@ -660,6 +685,29 @@ final class ParamController extends Controller
         }
 
         $this->redirect('/admin/parametres/base');
+    }
+
+    /** Déclenchement manuel de la notification d'alertes de fins de contrat (POST). */
+    public function runAlerts(): void
+    {
+        $this->guardPost(Auth::ROLE_ADMIN);
+
+        try {
+            $resultat = \Services\AlertService::notifier();
+            Flash::add($resultat['envoi'] ? 'success' : 'info', $resultat['message']);
+            AuditLog::creation(
+                'parametre',
+                null,
+                null,
+                "Envoi manuel du récapitulatif d'alertes fins de contrat : " . $resultat['message'],
+                $resultat
+            );
+        } catch (\Throwable $e) {
+            Logger::error("Échec de l'envoi manuel des alertes", $e);
+            Flash::add('danger', "Une erreur est survenue lors de l'envoi des alertes : " . $e->getMessage());
+        }
+
+        $this->redirect('/admin/parametres/alertes');
     }
 
     /** @return array<string, string> */

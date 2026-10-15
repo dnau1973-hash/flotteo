@@ -108,21 +108,25 @@ final class DictionaryController extends Controller
                         \Core\Upload::remove($dossierUpload, $ancienFichier);
                     }
                 }
+                $libelleEntree = $payload['nom'] ?? $payload['libelle'] ?? "#$id";
+                $titreRef = $def['titre'] ?? $def['libelle'];
                 AuditLog::modification(
                     'dictionnaire',
                     $id,
                     null,
-                    "Modification dans le référentiel {$def['titre']} (" . ($payload['nom'] ?? "#$id") . ')',
+                    "Modification dans le référentiel {$titreRef} ({$libelleEntree})",
                     $payload
                 );
                 Flash::add('success', 'Entrée mise à jour.');
             } else {
                 Dictionary::create($type, $payload);
+                $libelleEntree = $payload['nom'] ?? $payload['libelle'] ?? '';
+                $titreRef = $def['titre'] ?? $def['libelle'];
                 AuditLog::creation(
                     'dictionnaire',
                     null,
                     null,
-                    "Ajout dans le référentiel {$def['titre']} (" . ($payload['nom'] ?? '') . ')',
+                    "Ajout dans le référentiel {$titreRef} ({$libelleEntree})",
                     $payload
                 );
                 Flash::add('success', 'Entrée ajoutée à la table de paramétrage.');
@@ -151,16 +155,20 @@ final class DictionaryController extends Controller
             $this->repondreErreurs(['Table de paramétrage inconnue.'], $type);
         }
 
+        $titreRef = $def['titre'] ?? $def['libelle'];
         if (Dictionary::delete($type, $id)) {
             AuditLog::suppression(
                 'dictionnaire',
                 $id,
                 null,
-                "Suppression dans le référentiel {$def['titre']} #$id"
+                "Suppression dans le référentiel {$titreRef} #$id"
             );
             Flash::add('success', 'Entrée supprimée.');
         } else {
-            Flash::add('danger', 'Suppression impossible : cette entrée est encore utilisée par un véhicule ou un entretien.');
+            $msg = ($type === 'categories_intervention')
+                ? 'Suppression impossible : cette catégorie est encore attribuée à un ou plusieurs types d\'intervention.'
+                : 'Suppression impossible : cette entrée est encore utilisée par un véhicule ou un entretien.';
+            Flash::add('danger', $msg);
         }
 
         $this->redirect('/admin/dictionnaires/' . $type);

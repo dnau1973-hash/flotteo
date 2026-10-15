@@ -30,6 +30,7 @@
                 'entites'            => 'Entités',
                 'loueurs'            => 'Loueurs',
                 'lieux'              => 'Lieux',
+                'categories_intervention' => 'Catégories d\'intervention',
                 'types_intervention'  => 'Types d\'intervention',
                 'vehicules'          => 'Véhicules',
                 'maintenances'       => 'Révisions & entretien',

@@ -40,6 +40,8 @@ CREATE TABLE utilisateurs (
     password_hash VARCHAR(255) NOT NULL,
     role          ENUM('lecture_seule','documentaliste','modification','administration') NOT NULL DEFAULT 'lecture_seule',
     actif         TINYINT(1) NOT NULL DEFAULT 1,
+    doit_changer_mot_de_passe TINYINT(1) NOT NULL DEFAULT 0,
+    password_changed_at       DATETIME NULL DEFAULT NULL,
     avatar        VARCHAR(64) NULL DEFAULT NULL,
     created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
@@ -95,11 +97,18 @@ CREATE TABLE lieux (
     PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE categories_intervention (
+    id        INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    code      VARCHAR(50) NOT NULL UNIQUE,
+    nom       VARCHAR(100) NOT NULL,
+    actif     TINYINT(1) NOT NULL DEFAULT 1,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE types_intervention (
     id        INT UNSIGNED NOT NULL AUTO_INCREMENT,
     libelle   VARCHAR(120) NOT NULL,
-    categorie ENUM('constructeur','pneumatique','freinage','controle','carrosserie','autre')
-              NOT NULL DEFAULT 'autre',
+    categorie VARCHAR(80) NOT NULL DEFAULT 'autre',
     actif     TINYINT(1) NOT NULL DEFAULT 1,
     PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -342,6 +351,14 @@ INSERT INTO parametres (cle, valeur) VALUES
     ('km_delai_jours_relance', '3'),
     ('km_relance_active', '1'),
     ('depot_github', '');
+
+INSERT INTO categories_intervention (code, nom) VALUES
+    ('constructeur', 'Entretien constructeur'),
+    ('pneumatique', 'Pneumatiques'),
+    ('freinage', 'Freinage'),
+    ('controle', 'Contrôle technique'),
+    ('carrosserie', 'Carrosserie'),
+    ('autre', 'Autre');
 
 INSERT INTO types_intervention (libelle, categorie) VALUES
     ('Révision constructeur', 'constructeur'),

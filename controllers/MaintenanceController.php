@@ -37,7 +37,7 @@ final class MaintenanceController extends Controller
             'filtres'     => $filtres,
             'vehicules'   => Vehicle::search([]),
             'types'       => Dictionary::list('types_intervention'),
-            'categories'  => Dictionary::TYPES['types_intervention']['categories'] ?? [],
+            'categories'  => Dictionary::categoriesListe(),
             'total_ht'    => array_sum(array_map(
                 static fn (array $m): float => (float) $m['cout_ht'],
                 $entretiens
@@ -248,12 +248,25 @@ final class MaintenanceController extends Controller
         }
 
         try {
-            Maintenance::addFile(
+            $fileId = Maintenance::addFile(
                 $id,
                 (string) $depot['chemin'],
                 (string) ($fichier['name'] ?? 'fichier'),
                 (string) $depot['mime'],
                 (int) $depot['taille']
+            );
+            $immat = $entretien['immatriculation'] ?? null;
+            $nomFichier = (string) ($fichier['name'] ?? 'fichier');
+            AuditLog::creation(
+                'document',
+                $fileId > 0 ? $fileId : $id,
+                $immat,
+                "Ajout de la pièce jointe '$nomFichier' à la prestation d'entretien #$id" . ($immat ? " ($immat)" : ''),
+                [
+                    'maintenance_id' => $id,
+                    'nom_original'   => $nomFichier,
+                    'taille'         => (int) $depot['taille'],
+                ]
             );
             Flash::add('success', 'Pièce jointe ajoutée à la prestation.');
         } catch (\PDOException $e) {
@@ -355,7 +368,18 @@ final class MaintenanceController extends Controller
         }
 
         $prestation = (int) $fichier['maintenance_id'];
+        $entretien  = Maintenance::find($prestation);
+        $immat      = $entretien['immatriculation'] ?? null;
+        $nomFichier = (string) ($fichier['nom_original'] ?? 'fichier');
+
         if (Maintenance::deleteFile($id)) {
+            AuditLog::suppression(
+                'document',
+                $id,
+                $immat,
+                "Suppression de la pièce jointe '$nomFichier' de la prestation d'entretien #$prestation" . ($immat ? " ($immat)" : ''),
+                $fichier
+            );
             Flash::add('success', 'La pièce jointe a été supprimée.');
         } else {
             Flash::add('danger', 'Suppression impossible.');

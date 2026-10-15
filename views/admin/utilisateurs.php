@@ -93,6 +93,9 @@ $teinte = static fn (string $role): array => $teintes[$role] ?? $teintes['lectur
                                     <?= $icone('envelope', 'me-1') ?><?= $e((string) $u['email']) ?>
                                 </div>
 
+                                <?php
+                                $statMdp = User::passwordExpirationStatus($u);
+                                ?>
                                 <div class="mb-2">
                                     <span class="badge <?= $couleur['badge'] ?> badge-statut">
                                         <?= $e($roles[$role] ?? $role) ?>
@@ -100,10 +103,26 @@ $teinte = static fn (string $role): array => $teintes[$role] ?? $teintes['lectur
                                     <?php if ((int) $u['actif'] !== 1): ?>
                                         <span class="badge bg-secondary-lt">Désactivé</span>
                                     <?php endif; ?>
+                                    <?php if ((int) ($u['doit_changer_mot_de_passe'] ?? 0) === 1): ?>
+                                        <span class="badge bg-warning-lt" title="Changement de mot de passe obligatoire à la prochaine connexion">
+                                            <?= $icone('key', 'me-1') ?>Mot de passe à renouveler
+                                        </span>
+                                    <?php elseif ($statMdp['expire_par_delai']): ?>
+                                        <span class="badge bg-danger-lt" title="Le mot de passe a dépassé la limite de validité de 6 mois">
+                                            <?= $icone('clock-rotate-left', 'me-1') ?>Mot de passe expiré (> 6 mois)
+                                        </span>
+                                    <?php elseif ($statMdp['en_rappel']): ?>
+                                        <span class="badge bg-warning-lt" title="Expire le <?= $e($statMdp['date_expiration']->format('d/m/Y')) ?>">
+                                            <?= $icone('clock', 'me-1') ?>Expire dans <?= (int) $statMdp['jours_restants'] ?> j
+                                        </span>
+                                    <?php endif; ?>
                                 </div>
 
                                 <div class="text-secondary small">
                                     Créé le <?= $e(mb_substr((string) $u['created_at'], 0, 10)) ?>
+                                    <?php if (!empty($u['password_changed_at'])): ?>
+                                        · Mdp : <?= $e(mb_substr((string) $u['password_changed_at'], 0, 10)) ?>
+                                    <?php endif; ?>
                                 </div>
                             </div>
 
@@ -116,6 +135,7 @@ $teinte = static fn (string $role): array => $teintes[$role] ?? $teintes['lectur
                                         data-email="<?= $e((string) $u['email']) ?>"
                                         data-role="<?= $e($role) ?>"
                                         data-actif="<?= (int) $u['actif'] ?>"
+                                        data-doit-changer-mot-de-passe="<?= (int) ($u['doit_changer_mot_de_passe'] ?? 0) ?>"
                                         data-avatar="<?= $e((string) ($u['avatar'] ?? '')) ?>"
                                         data-avatar-url="<?= $e(User::avatarUrl($u['avatar'] ?? null) ?? '') ?>"
                                         data-initiales="<?= $e(User::initiales((string) $u['nom'])) ?>"
@@ -244,10 +264,16 @@ $teinte = static fn (string $role): array => $teintes[$role] ?? $teintes['lectur
                            minlength="8" placeholder="8 caractères minimum">
                     <small class="form-hint" id="aide-mdp">Obligatoire à la création. Laisser vide pour conserver l'existant.</small>
                 </div>
-                <label class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" name="actif" value="1" id="u_actif" checked>
-                    <span class="form-check-label">Compte actif</span>
-                </label>
+                <div class="mb-3">
+                    <label class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" name="actif" value="1" id="u_actif" checked>
+                        <span class="form-check-label">Compte actif</span>
+                    </label>
+                    <label class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="doit_changer_mot_de_passe" value="1" id="u_doit_changer_mot_de_passe">
+                        <span class="form-check-label">Exiger la modification du mot de passe à la prochaine connexion</span>
+                    </label>
+                </div>
             </div>
 
             <div class="modal-footer">

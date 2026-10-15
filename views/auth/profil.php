@@ -104,9 +104,34 @@ $this->useScript('profil.js');
                     </div>
 
                     <hr class="my-4">
-                    <h4 class="mb-3">Changer de mot de passe</h4>
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h4 class="mb-0">Changer de mot de passe</h4>
+                        <span class="badge bg-secondary-lt">
+                            <?= $icone('shield-halved', 'me-1') ?>Validité : 6 mois
+                        </span>
+                    </div>
+
+                    <?php if (!empty($status_mdp['date_expiration'])): ?>
+                        <div class="text-secondary small mb-3">
+                            <?= $icone('calendar-days', 'me-1') ?>Dernière modification : <?= $e($status_mdp['date_changement'] ? $status_mdp['date_changement']->format('d/m/Y') : 'Inconnue') ?>
+                            — Prochaine échéance : <strong><?= $e($status_mdp['date_expiration']->format('d/m/Y')) ?></strong>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if (!empty($status_mdp['en_rappel'])): ?>
+                        <div class="alert alert-warning d-flex align-items-center mb-3 py-2" role="alert">
+                            <?= $icone('triangle-exclamation', 'fs-2 me-3 text-warning') ?>
+                            <div>
+                                <div class="fw-bold">Rappel de renouvellement semestriel</div>
+                                <div class="small">
+                                    Votre mot de passe expire dans <strong><?= (int) $status_mdp['jours_restants'] ?> jour(s)</strong> (le <?= $e($status_mdp['date_expiration']->format('d/m/Y')) ?>). Nous vous recommandons de le renouveler dès maintenant.
+                                </div>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+
                     <p class="form-hint mb-3">
-                        Laissez ces trois champs vides pour conserver votre mot de passe actuel.
+                        Laissez ces trois champs vides pour conserver votre mot de passe actuel. Tout nouveau mot de passe doit comporter au moins 10 caractères avec minuscules, majuscules, chiffres et caractères spéciaux.
                     </p>
                     <div class="mb-3">
                         <label class="form-label" for="password_actuel">Mot de passe actuel</label>

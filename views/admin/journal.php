@@ -520,7 +520,20 @@ document.addEventListener('DOMContentLoaded', function () {
         'email': 'Adresse email',
         'role': 'Rôle utilisateur',
         'actif': 'Compte actif',
-        'deleted_at': 'Date d\'archivage'
+        'deleted_at': 'Date d\'archivage',
+        'tables': 'Tables sauvegardées',
+        'fichiers': 'Fichiers sauvegardés',
+        'taille': 'Taille (octets)',
+        'samba': 'Statut Samba',
+        'samba_message': 'Détail Samba',
+        'archive': 'Nom de l\'archive',
+        'table': 'Table concernée',
+        'lignes_supprimees': 'Lignes supprimées',
+        'crees': 'Véhicules créés',
+        'modifies': 'Véhicules modifiés',
+        'ignores': 'Lignes ignorées',
+        'total': 'Total lignes traitées',
+        'verrouille': 'Relevé verrouillé'
     };
 
     function escapeHtml(str) {

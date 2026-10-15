@@ -118,7 +118,10 @@ final class Stat
     /** Évolution mensuelle des coûts d'entretien, empilée par typologie. */
     public static function maintenanceCosts(int $mois = 12, ?int $entiteId = null): array
     {
-        $categories = ['constructeur', 'pneumatique', 'freinage', 'controle', 'carrosserie', 'autre'];
+        $categories = Dictionary::categoriesCodes();
+        if ($categories === []) {
+            $categories = ['constructeur', 'pneumatique', 'freinage', 'controle', 'carrosserie', 'autre'];
+        }
         $whereEntite = ($entiteId !== null && $entiteId > 0) ? ' AND v.entite_id = :entite' : '';
         $params = [
             'du' => date('Y-m-01', strtotime("first day of -" . ($mois - 1) . " months")),

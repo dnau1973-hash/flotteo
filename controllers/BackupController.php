@@ -9,6 +9,7 @@ use Core\Csrf;
 use Core\Flash;
 use Core\Logger;
 use Core\Request;
+use Models\AuditLog;
 use Models\Backup;
 use Services\BackupService;
 use Services\SambaClient;
@@ -105,6 +106,22 @@ final class BackupController extends Controller
             Flash::add('info', 'Archive copiée sur le partage réseau.');
         }
 
+        $nomArchive = (string) ($resultat['archive'] ?? basename((string) ($resultat['chemin'] ?? 'archive.zip')));
+        AuditLog::creation(
+            'sauvegarde',
+            null,
+            null,
+            "Génération d'une sauvegarde complète : $nomArchive" . ($samba === 'reussi' ? ' (copie Samba réussie)' : ''),
+            [
+                'archive'       => $nomArchive,
+                'tables'        => (int) ($resultat['tables'] ?? 0),
+                'fichiers'      => (int) ($resultat['fichiers'] ?? 0),
+                'taille'        => (int) ($resultat['taille'] ?? 0),
+                'samba'         => $samba,
+                'samba_message' => $resultat['samba_message'] ?? null,
+            ]
+        );
+
         $this->redirect(self::RETOUR);
     }
 
@@ -115,6 +132,16 @@ final class BackupController extends Controller
 
         $resultat = BackupService::purger();
         Flash::add($resultat['ok'] ? 'success' : 'danger', $resultat['message']);
+
+        if ($resultat['ok']) {
+            AuditLog::suppression(
+                'sauvegarde',
+                null,
+                null,
+                "Rotation manuelle des sauvegardes : " . $resultat['message'],
+                $resultat
+            );
+        }
 
         $this->redirect(self::RETOUR);
     }
@@ -143,6 +170,15 @@ final class BackupController extends Controller
 
         Backup::supprimer((int) $ligne['id']);
         Logger::info("Sauvegarde supprimee: $fichier");
+
+        AuditLog::suppression(
+            'sauvegarde',
+            (int) $ligne['id'],
+            null,
+            "Suppression de l'archive de sauvegarde $fichier",
+            $ligne
+        );
+
         Flash::add('success', 'Sauvegarde supprimée : ' . $fichier);
 
         $this->redirect(self::RETOUR);

@@ -241,12 +241,27 @@ final class IncidentController extends Controller
         }
 
         try {
-            Incident::addFile(
+            $fileId = Incident::addFile(
                 $incidentId,
                 (string) $resultat['chemin'],
                 (string) ($fichier['name'] ?? 'fichier'),
                 (string) $resultat['mime'],
                 (int) $resultat['taille']
+            );
+            $immat = $incident['immatriculation'] ?? null;
+            $nomFichier = (string) ($fichier['name'] ?? 'fichier');
+            $ref = $incident['reference'] ?? "#$incidentId";
+            AuditLog::creation(
+                'document',
+                $fileId > 0 ? $fileId : $incidentId,
+                $immat,
+                "Ajout de la pièce jointe '$nomFichier' au dossier de sinistre $ref" . ($immat ? " ($immat)" : ''),
+                [
+                    'incident_id'  => $incidentId,
+                    'reference'    => $ref,
+                    'nom_original' => $nomFichier,
+                    'taille'       => (int) $resultat['taille'],
+                ]
             );
             Flash::add('success', 'Pièce jointe ajoutée au dossier.');
         } catch (\PDOException $e) {
@@ -355,8 +370,21 @@ final class IncidentController extends Controller
             $this->redirect('/incidents');
         }
 
+        $incidentId = (int) $fichier['incident_id'];
+        $incident   = Incident::find($incidentId);
+        $immat      = $incident['immatriculation'] ?? null;
+        $nomFichier = (string) ($fichier['nom_original'] ?? 'fichier');
+        $ref        = $incident['reference'] ?? "#$incidentId";
+
         try {
             Incident::deleteFile((int) $fichier['id']);
+            AuditLog::suppression(
+                'document',
+                $id,
+                $immat,
+                "Suppression de la pièce jointe '$nomFichier' du dossier de sinistre $ref" . ($immat ? " ($immat)" : ''),
+                $fichier
+            );
             Flash::add('success', 'Pièce jointe supprimée.');
         } catch (\PDOException $e) {
             Logger::error('Suppression pièce jointe impossible', $e);

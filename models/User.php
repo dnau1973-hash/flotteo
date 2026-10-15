@@ -35,10 +35,19 @@ final class User
             if ($col && isset($col['Type']) && !str_contains((string) $col['Type'], 'documentaliste')) {
                 Database::run("ALTER TABLE utilisateurs MODIFY COLUMN role ENUM('lecture_seule','documentaliste','modification','administration') NOT NULL DEFAULT 'lecture_seule'");
             }
+            Database::run("ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS doit_changer_mot_de_passe TINYINT(1) NOT NULL DEFAULT 0 AFTER actif");
+            Database::run("ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS password_changed_at DATETIME NULL DEFAULT NULL AFTER doit_changer_mot_de_passe");
+            Database::run("UPDATE utilisateurs SET password_changed_at = COALESCE(created_at, NOW()) WHERE password_changed_at IS NULL");
         } catch (\Throwable $e) {
-            \Core\Logger::error('Mise à jour ENUM rôle utilisateur impossible', $e);
+            \Core\Logger::error('Mise à jour schéma utilisateur impossible', $e);
         }
     }
+
+    /** Périodicité du renouvellement obligatoire : 6 mois. */
+    public const DUREE_VALIDITE_MDP_MOIS = 6;
+
+    /** Fenêtre de prévenance / rappel avant expiration : 1 mois. */
+    public const DUREE_RAPPEL_MDP_MOIS = 1;
 
     /** Sous-dossier de `public/uploads` où sont déposés les avatars. */
     public const DOSSIER_AVATAR = 'avatars';
@@ -75,35 +84,48 @@ final class User
         return Database::all('SELECT * FROM utilisateurs ORDER BY nom ASC');
     }
 
-    public static function create(string $nom, string $email, string $motDePasse, string $role, ?string $avatar = null): int
+    public static function create(string $nom, string $email, string $motDePasse, string $role, ?string $avatar = null, int $doitChangerMotDePasse = 0): int
     {
         self::ensureRoleEnum();
         return Database::insert('utilisateurs', [
-            'nom'           => $nom,
-            'email'         => $email,
-            'password_hash' => password_hash($motDePasse, PASSWORD_DEFAULT),
-            'role'          => $role,
-            'actif'         => 1,
-            'avatar'        => $avatar,
+            'nom'                       => $nom,
+            'email'                     => $email,
+            'password_hash'             => password_hash($motDePasse, PASSWORD_DEFAULT),
+            'role'                      => $role,
+            'actif'                     => 1,
+            'doit_changer_mot_de_passe' => $doitChangerMotDePasse,
+            'password_changed_at'       => date('Y-m-d H:i:s'),
+            'avatar'                    => $avatar,
         ]);
     }
 
     /**
-     * Met à jour l'identité, le rôle et l'état.
+     * Met à jour l'identité, le rôle, l'état et l'exigence de renouvellement.
      *
      * L'avatar est délibérément hors de cette méthode : `Core\Database::update()`
      * écrit toutes les clés fournies, `null` compris. Inclure l'avatar ici
      * effacerait donc l'image à chaque enregistrement de profil. Son traitement
      * est isolé dans `setAvatar()`.
      */
-    public static function update(int $id, string $nom, string $email, string $role, int $actif): int
+    public static function update(int $id, string $nom, string $email, string $role, int $actif, int $doitChangerMotDePasse = 0): int
     {
         self::ensureRoleEnum();
         return Database::update('utilisateurs', $id, [
-            'nom'   => $nom,
-            'email' => $email,
-            'role'  => $role,
-            'actif' => $actif,
+            'nom'                       => $nom,
+            'email'                     => $email,
+            'role'                      => $role,
+            'actif'                     => $actif,
+            'doit_changer_mot_de_passe' => $doitChangerMotDePasse,
+        ]);
+    }
+
+    /** Met à jour le mot de passe et réinitialise le drapeau de renouvellement forcé. */
+    public static function updatePasswordAndClearFlag(int $id, string $nouveauMotDePasse): int
+    {
+        return Database::update('utilisateurs', $id, [
+            'password_hash'             => password_hash($nouveauMotDePasse, PASSWORD_DEFAULT),
+            'password_changed_at'       => date('Y-m-d H:i:s'),
+            'doit_changer_mot_de_passe' => 0,
         ]);
     }
 
@@ -151,8 +173,72 @@ final class User
     public static function updatePassword(int $id, string $motDePasse): int
     {
         return Database::update('utilisateurs', $id, [
-            'password_hash' => password_hash($motDePasse, PASSWORD_DEFAULT),
+            'password_hash'             => password_hash($motDePasse, PASSWORD_DEFAULT),
+            'password_changed_at'       => date('Y-m-d H:i:s'),
+            'doit_changer_mot_de_passe' => 0,
         ]);
+    }
+
+    /**
+     * Calcule le statut complet d'expiration du mot de passe de l'utilisateur.
+     *
+     * Règles :
+     * - Validité maximale : 6 mois à compter du dernier changement (ou création du compte).
+     * - Période de rappel : 1 mois avant la date d'échéance des 6 mois.
+     * - Expiration immédiate si le drapeau doit_changer_mot_de_passe vaut 1.
+     *
+     * @param array $user Données de l'utilisateur
+     * @return array{
+     *   expire: bool,
+     *   expire_par_delai: bool,
+     *   en_rappel: bool,
+     *   jours_restants: int,
+     *   date_changement: ?\DateTimeImmutable,
+     *   date_expiration: ?\DateTimeImmutable
+     * }
+     */
+    public static function passwordExpirationStatus(array $user): array
+    {
+        $doitChanger = ((int) ($user['doit_changer_mot_de_passe'] ?? 0)) === 1;
+
+        $dateStr = (string) ($user['password_changed_at'] ?? $user['created_at'] ?? '');
+        $dateChangement = null;
+        if ($dateStr !== '') {
+            try {
+                $dateChangement = new \DateTimeImmutable($dateStr);
+            } catch (\Throwable) {
+                $dateChangement = new \DateTimeImmutable('now');
+            }
+        } else {
+            $dateChangement = new \DateTimeImmutable('now');
+        }
+
+        $dateExpiration = $dateChangement->modify('+' . self::DUREE_VALIDITE_MDP_MOIS . ' months');
+        $dateRappel     = $dateExpiration->modify('-' . self::DUREE_RAPPEL_MDP_MOIS . ' month');
+        $maintenant     = new \DateTimeImmutable('now');
+
+        $expireParDelai = $maintenant >= $dateExpiration;
+        $expire         = $doitChanger || $expireParDelai;
+
+        $diffSec = $dateExpiration->getTimestamp() - $maintenant->getTimestamp();
+        $joursRestants = $diffSec > 0 ? (int) ceil($diffSec / 86400) : 0;
+
+        $enRappel = !$expire && ($maintenant >= $dateRappel);
+
+        return [
+            'expire'           => $expire,
+            'expire_par_delai' => $expireParDelai,
+            'en_rappel'        => $enRappel,
+            'jours_restants'   => $joursRestants,
+            'date_changement'  => $dateChangement,
+            'date_expiration'  => $dateExpiration,
+        ];
+    }
+
+    /** Détermine rapidement si le mot de passe est expiré (délai dépassé ou forcé). */
+    public static function isPasswordExpired(array $user): bool
+    {
+        return self::passwordExpirationStatus($user)['expire'];
     }
 
     /**

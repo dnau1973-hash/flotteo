@@ -121,6 +121,14 @@ final class AuditController extends Controller
         $nomAdmin = Auth::user()['nom'] ?? ('Utilisateur #' . (Auth::id() ?? 0));
         Logger::info("Purge manuelle du journal d'audit effectuée par $nomAdmin : $supprimes entrées supprimées (conservation $jours jours)");
 
+        AuditLog::suppression(
+            'parametre',
+            null,
+            null,
+            "Purge manuelle du journal d'audit : $supprimes entrée(s) de plus de $jours jours supprimée(s)",
+            ['jours_conservation' => $jours, 'entrees_supprimees' => $supprimes]
+        );
+
         Flash::add('success', "Le journal d'audit a été purgé manuellement : $supprimes entrée(s) de plus de $jours jours supprimée(s).");
         $this->redirect('/admin/journal');
     }

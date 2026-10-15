@@ -48,6 +48,7 @@ final class UserController extends Controller
         $email = mb_substr((string) Request::input('email', ''), 0, 190);
         $role  = (string) Request::input('role', 'lecture_seule');
         $actif = Request::int('actif') === 1 ? 1 : 0;
+        $doitChangerMdp = Request::int('doit_changer_mot_de_passe') === 1 ? 1 : 0;
         $pwd   = (string) Request::input('password', '');
 
         $erreurs = [];
@@ -100,14 +101,20 @@ final class UserController extends Controller
 
         try {
             if ($id > 0) {
-                User::update($id, $nom, $email, $role, $actif);
+                User::update($id, $nom, $email, $role, $actif, $doitChangerMdp);
                 if ($pwd !== '') {
                     User::updatePassword($id, $pwd);
                 }
 
                 $this->appliquerAvatar($id, $avatar, $suppression, (string) ($existant['avatar'] ?? ''));
 
-                $payload = ['nom' => $nom, 'email' => $email, 'role' => $role, 'actif' => $actif];
+                $payload = [
+                    'nom'                       => $nom,
+                    'email'                     => $email,
+                    'role'                      => $role,
+                    'actif'                     => $actif,
+                    'doit_changer_mot_de_passe' => $doitChangerMdp,
+                ];
                 $diff = $existant !== null ? AuditLog::diff($existant, $payload) : ['apres' => $payload];
                 AuditLog::modification(
                     'utilisateur',
@@ -121,13 +128,19 @@ final class UserController extends Controller
             } else {
                 // À la création, `avatar_supprimer` n'a rien à supprimer : le
                 // dépôt éventuel a déjà été transmis à `User::create()`.
-                $newId = User::create($nom, $email, $pwd, $role, $avatar);
+                $newId = User::create($nom, $email, $pwd, $role, $avatar, $doitChangerMdp);
                 AuditLog::creation(
                     'utilisateur',
                     $newId,
                     null,
                     "Création du compte utilisateur $nom ($email)",
-                    ['nom' => $nom, 'email' => $email, 'role' => $role, 'actif' => 1]
+                    [
+                        'nom'                       => $nom,
+                        'email'                     => $email,
+                        'role'                      => $role,
+                        'actif'                     => 1,
+                        'doit_changer_mot_de_passe' => $doitChangerMdp,
+                    ]
                 );
 
                 Flash::add('success', 'Utilisateur créé.');

@@ -35,7 +35,11 @@ $modifiable = Auth::can(Auth::ROLE_MODIFICATION);
                 <select class="form-select" id="f_categorie" name="categorie">
                     <option value="">Toutes</option>
                     <?php foreach ($categories as $c): ?>
-                        <option value="<?= $e($c) ?>" <?= $filtres['categorie'] === $c ? 'selected' : '' ?>><?= $e(ucfirst($c)) ?></option>
+                        <?php
+                        $cCode = is_array($c) ? ($c['code'] ?? '') : (string) $c;
+                        $cNom  = is_array($c) ? ($c['nom'] ?? ucfirst($cCode)) : ucfirst((string) $c);
+                        ?>
+                        <option value="<?= $e($cCode) ?>" <?= $filtres['categorie'] === $cCode ? 'selected' : '' ?>><?= $e($cNom) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>

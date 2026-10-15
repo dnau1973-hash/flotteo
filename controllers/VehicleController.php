@@ -266,6 +266,21 @@ final class VehicleController extends Controller
             }
             Flash::add('success', $msg);
 
+            AuditLog::log(
+                AuditLog::ACTION_IMPORT,
+                'vehicule',
+                null,
+                null,
+                $msg,
+                [
+                    'crees'    => $resultat['crees'],
+                    'modifies' => $resultat['modifies'],
+                    'ignores'  => $resultat['ignores'],
+                    'total'    => $resultat['total'],
+                    'fichier'  => $fichier['name'] ?? 'import.csv',
+                ]
+            );
+
             if ($resultat['erreurs'] !== []) {
                 $maxAffichage = 5;
                 $details = array_slice($resultat['erreurs'], 0, $maxAffichage);
@@ -340,7 +355,7 @@ final class VehicleController extends Controller
         }
 
         try {
-            VehicleDocument::add(
+            $docId = VehicleDocument::add(
                 $vehiculeId,
                 $type,
                 $titre,
@@ -349,6 +364,23 @@ final class VehicleController extends Controller
                 (string) ($fichier['name'] ?? 'document'),
                 (string) $depot['mime'],
                 (int) $depot['taille']
+            );
+            $immat = $vehicule['immatriculation'];
+            $nomFichier = (string) ($fichier['name'] ?? 'document');
+            $libelleDoc = $titre !== '' ? "document '$titre' ($nomFichier)" : "document '$nomFichier'";
+            AuditLog::creation(
+                'document',
+                $docId > 0 ? $docId : $vehiculeId,
+                $immat,
+                "Ajout du {$libelleDoc} pour le véhicule {$immat}",
+                [
+                    'vehicule_id'     => $vehiculeId,
+                    'type'            => $type,
+                    'titre'           => $titre,
+                    'nom_original'    => $nomFichier,
+                    'taille'          => (int) $depot['taille'],
+                    'date_expiration' => $dateExpiration,
+                ]
             );
             Flash::add('success', 'Document ajouté avec succès au véhicule.');
         } catch (\PDOException $e) {

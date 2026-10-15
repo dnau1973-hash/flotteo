@@ -38,6 +38,8 @@ $router->post('/login', AuthController::class, 'login');
 $router->post('/logout', AuthController::class, 'logout');
 $router->get('/profil', AuthController::class, 'profile');
 $router->post('/profil', AuthController::class, 'updateProfile');
+$router->get('/changer-mot-de-passe-requis', AuthController::class, 'formForcePasswordChange');
+$router->post('/changer-mot-de-passe-requis', AuthController::class, 'submitForcePasswordChange');
 
 // --- Dashboard ---------------------------------------------------------------
 $router->get('/', DashboardController::class, 'index');
