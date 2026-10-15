@@ -256,6 +256,7 @@ final class ParamController extends Controller
      *    demande explicite, portée par la case à cocher dédiée.
      *
      * @param array<string, string> $stockees Valeurs actuellement en base
+     */
     private function valeurAEnregistrer(string $cle, array $stockees): string
     {
         if (in_array($cle, ['alerte_active', 'sauvegarde_partage_actif', 'km_relance_active'], true)) {
