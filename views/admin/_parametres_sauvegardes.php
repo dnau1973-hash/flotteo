@@ -242,6 +242,7 @@ $derniere        = $historique[0] ?? null;
             Les valeurs saisies sont éprouvées directement sans avoir besoin d'enregistrer d'abord.
         </span>
     </div>
+    <div id="resultat-test-samba" class="mt-3"></div>
 </div>
 
 <!-- ============================ Historique ============================ -->

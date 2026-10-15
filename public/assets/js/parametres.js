@@ -99,7 +99,7 @@
             noeud = document.createElement('div');
             noeud.id = 'resultat-test-samba';
             noeud.className = 'mt-3';
-            bouton.parentNode.insertBefore(noeud, bouton.parentNode.nextSibling);
+            bouton.closest('.card-body').appendChild(noeud);
             return noeud;
         }
 
