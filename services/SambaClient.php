@@ -15,12 +15,11 @@ use Models\Backup;
  *     est un dossier existant sur le serveur (ex : `/mnt/sauvegardes`), le dépôt
  *     est une copie de fichier ordinaire : aucune authentification SMB n'est requise
  *     depuis PHP, le point de montage système s'en chargeant.
- *  2. **cURL SMB natif.** Si l'extension cURL de PHP supporte le protocole `smb://`,
- *     les échanges et le transfert s'effectuent directement en réseau vers le port 445
- *     sans dépendre d'un binaire shell ni de privilèges d'administration.
- *  3. **Binaire `smbclient`.** Si le paquet `smbclient` est présent sur le système,
- *     la copie passe par la ligne de commande avec fichier d'authentification temporaire
- *     sécurisé (`0600`).
+ *  2. **Binaire `smbclient`.** Utilise le protocole moderne SMB2/SMB3 avec fichier
+ *     d'authentification sécurisé (`0600`). Recommandé et compatible avec Windows 10/11
+ *     et tous les serveurs SMB modernes.
+ *  3. **cURL SMB natif.** Si `smbclient` est absent et que cURL supporte `smb://`
+ *     (protocole hérité SMBv1).
  */
 final class SambaClient
 {
@@ -77,13 +76,13 @@ final class SambaClient
         }
 
         $this->dernierMessage = "Aucun moyen d'accès au partage Samba disponible (ni point de montage existant "
-            . "dans « " . (string) ($this->config['samba_repertoire'] ?? '') . " », ni support cURL SMB, ni binaire smbclient).";
+            . "dans « " . (string) ($this->config['samba_repertoire'] ?? '') . " », ni binaire smbclient, ni support cURL SMB).";
 
         return false;
     }
 
     /**
-     * Transport qui sera employé : 'montage', 'curl', 'smbclient', ou null.
+     * Transport qui sera employé : 'montage', 'smbclient', 'curl', ou null.
      */
     public function transport(): ?string
     {
@@ -91,12 +90,12 @@ final class SambaClient
             return 'montage';
         }
 
-        if ($this->supporteCurlSmb()) {
-            return 'curl';
-        }
-
         if ($this->binaire() !== null) {
             return 'smbclient';
+        }
+
+        if ($this->supporteCurlSmb()) {
+            return 'curl';
         }
 
         return null;
@@ -359,7 +358,14 @@ final class SambaClient
             return $chemin;
         }
 
-        foreach (['/usr/bin/smbclient', '/usr/local/bin/smbclient', '/bin/smbclient'] as $candidat) {
+        $candidats = [
+            dirname(__DIR__) . '/bin/smbclient',
+            '/usr/bin/smbclient',
+            '/usr/local/bin/smbclient',
+            '/bin/smbclient',
+        ];
+
+        foreach ($candidats as $candidat) {
             if (is_file($candidat) && is_executable($candidat)) {
                 return $chemin = $candidat;
             }
@@ -372,12 +378,19 @@ final class SambaClient
     private function testerSmbclient(): array
     {
         $auth = $this->fichierAuth();
-        if ($auth === null) {
-            return $this->echec("Fichier d'authentification Samba illisible : le dossier temporaire est inaccessible.");
+        if (!$this->estInvite() && $auth === null) {
+            return $this->echec("Fichier d'authentification Samba inaccessible : le dossier temporaire ne peut pas être écrit.");
         }
 
-        $resultat = $this->executer(['-c', 'ls'], $auth);
-        @unlink($auth);
+        $repertoire = trim((string) ($this->config['samba_repertoire'] ?? ''), " \t\n\r\0\x0B/\\");
+
+        try {
+            $resultat = $this->executer(['-c', 'ls'], $auth);
+        } finally {
+            if ($auth !== null) {
+                @unlink($auth);
+            }
+        }
 
         if ($resultat['code'] === 0) {
             return [
@@ -393,21 +406,45 @@ final class SambaClient
     private function deposerSmbclient(string $cheminLocal): array
     {
         $auth = $this->fichierAuth();
-        if ($auth === null) {
-            return $this->echec("Fichier d'authentification Samba illisible : le dossier temporaire est inaccessible.");
+        if (!$this->estInvite() && $auth === null) {
+            return $this->echec("Fichier d'authentification Samba inaccessible : le dossier temporaire ne peut pas être écrit.");
         }
 
-        $destination = $this->cheminDistant($cheminLocal);
-        $resultat = $this->executer(['-c', 'put "' . $cheminLocal . '" "' . $destination . '"'], $auth);
-        @unlink($auth);
+        $repertoire = trim((string) ($this->config['samba_repertoire'] ?? ''), " \t\n\r\0\x0B/\\");
+        $nomFichier = basename($cheminLocal);
+
+        try {
+            if ($repertoire !== '') {
+                $repSmb = str_replace('/', '\\', $repertoire);
+                // On tente de se positionner dans le répertoire puis de déposer
+                $cmd = 'cd "' . $repSmb . '"; put "' . $cheminLocal . '" "' . $nomFichier . '"';
+                $resultat = $this->executer(['-c', $cmd], $auth);
+
+                if ($resultat['code'] !== 0) {
+                    // Si le répertoire n'existe pas encore, on tente de le créer
+                    $cmdMkdir = 'mkdir "' . $repSmb . '"; cd "' . $repSmb . '"; put "' . $cheminLocal . '" "' . $nomFichier . '"';
+                    $resultat = $this->executer(['-c', $cmdMkdir], $auth);
+                }
+            } else {
+                $cmd = 'put "' . $cheminLocal . '" "' . $nomFichier . '"';
+                $resultat = $this->executer(['-c', $cmd], $auth);
+            }
+        } finally {
+            if ($auth !== null) {
+                @unlink($auth);
+            }
+        }
 
         if ($resultat['code'] !== 0) {
             return $this->echec('Transfert refusé via smbclient : ' . self::resumeSortie($resultat['erreur'], $resultat['sortie']));
         }
 
+        $taille = (int) @filesize($cheminLocal);
+        $cheminDistantAffiche = $this->partage() . '\\' . ($repertoire !== '' ? str_replace('/', '\\', $repertoire) . '\\' : '') . $nomFichier;
+
         return [
             'ok'      => true,
-            'message' => 'Archive transférée via smbclient vers ' . $this->partage() . '\\' . $destination . '.',
+            'message' => 'Archive transférée via smbclient vers ' . $cheminDistantAffiche . ' (' . self::poids($taille) . ').',
         ];
     }
 
@@ -423,18 +460,32 @@ final class SambaClient
     }
 
     /**
-     * Fichier d'authentification éphémère pour smbclient.
+     * Fichier d'authentification éphémère pour smbclient (-A).
+     *
+     * Format officiel smbclient :
+     *   username = <nom>
+     *   password = <mot_de_passe>
+     *   domain   = <domaine>
      */
     private function fichierAuth(): ?string
     {
         if ($this->estInvite()) {
-            $contenu = '';
-        } else {
-            $domaine = trim((string) ($this->config['samba_domaine'] ?? ''));
-            $ligne   = 'username = ' . (string) ($this->config['samba_utilisateur'] ?? '') . "\n"
-                . 'password = ' . (string) ($this->config['samba_mot_de_passe'] ?? '') . "\n";
-            $contenu = $domaine === '' ? $ligne : $domaine . '/' . $ligne;
+            return null;
         }
+
+        $user    = (string) ($this->config['samba_utilisateur'] ?? '');
+        $pass    = (string) ($this->config['samba_mot_de_passe'] ?? '');
+        $domaine = trim((string) ($this->config['samba_domaine'] ?? ''));
+
+        $lignes = [
+            'username = ' . $user,
+            'password = ' . $pass,
+        ];
+        if ($domaine !== '') {
+            $lignes[] = 'domain   = ' . $domaine;
+        }
+
+        $contenu = implode("\n", $lignes) . "\n";
 
         $fichier = @tempnam(sys_get_temp_dir(), 'flotteo_smb_');
         if ($fichier === false) {
@@ -468,18 +519,18 @@ final class SambaClient
      * @param string[] $arguments
      * @return array{code: int, sortie: string, erreur: string}
      */
-    private function executer(array $arguments, string $fichierAuth): array
+    private function executer(array $arguments, ?string $fichierAuth = null): array
     {
         $service = '//' . trim((string) ($this->config['samba_hote'] ?? ''), '\\/')
             . '/' . trim((string) ($this->config['samba_partage'] ?? ''), '\\/');
 
-        $commande = [(string) $this->binaire()];
+        $commande = [(string) $this->binaire(), $service];
         if ($this->estInvite()) {
             $commande[] = '-N';
+        } elseif ($fichierAuth !== null) {
+            $commande[] = '-A';
+            $commande[] = $fichierAuth;
         }
-        $commande[] = $service;
-        $commande[] = '-A';
-        $commande[] = $fichierAuth;
 
         foreach ($arguments as $arg) {
             $commande[] = $arg;
@@ -567,12 +618,33 @@ final class SambaClient
         return null;
     }
 
-    /** Première ligne utile d'une sortie de commande, pour un message d'écran. */
+    /** Première ligne utile d'une sortie de commande, traduite si possible. */
     private static function resumeSortie(string $erreur, string $sortie): string
     {
-        foreach (preg_split('/\R/', $erreur . "\n" . $sortie) ?: [] as $ligne) {
+        $texte = $erreur . "\n" . $sortie;
+
+        if (str_contains($texte, 'NT_STATUS_LOGON_FAILURE') || str_contains($texte, 'NT_STATUS_WRONG_PASSWORD')) {
+            return "Échec d'authentification : utilisateur, mot de passe ou domaine Samba incorrect.";
+        }
+        if (str_contains($texte, 'NT_STATUS_ACCESS_DENIED')) {
+            return "Accès refusé au partage Samba : permissions insuffisantes pour cet utilisateur.";
+        }
+        if (str_contains($texte, 'NT_STATUS_BAD_NETWORK_NAME')) {
+            return "Partage Samba introuvable : vérifiez le nom du partage sur le serveur distant.";
+        }
+        if (str_contains($texte, 'NT_STATUS_HOST_UNREACHABLE') || str_contains($texte, 'NT_STATUS_UNSUCCESSFUL') || str_contains($texte, 'NT_STATUS_CONNECTION_REFUSED')) {
+            return "Connexion impossible au serveur Samba : hôte introuvable ou port 445 fermé.";
+        }
+        if (str_contains($texte, 'NT_STATUS_OBJECT_NAME_NOT_FOUND') || str_contains($texte, 'NT_STATUS_NO_SUCH_FILE') || str_contains($texte, 'NT_STATUS_OBJECT_PATH_NOT_FOUND')) {
+            return "Répertoire cible introuvable sur le partage Samba.";
+        }
+        if (str_contains($texte, 'NT_STATUS_ACCOUNT_DISABLED')) {
+            return "Le compte utilisateur Samba est désactivé sur le serveur distant.";
+        }
+
+        foreach (preg_split('/\R/', $texte) ?: [] as $ligne) {
             $ligne = trim($ligne);
-            if ($ligne !== '') {
+            if ($ligne !== '' && !str_starts_with($ligne, 'lp_load_ex:') && !str_starts_with($ligne, 'WARNING:')) {
                 return mb_substr($ligne, 0, 200);
             }
         }
