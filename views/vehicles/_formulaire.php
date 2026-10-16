@@ -201,7 +201,12 @@
                         </select>
                     </div>
 
-                    <!-- Colonne 2 : Date d'entrée en flotte -->
+                    <!-- Séparateur Dates & Contrat -->
+                    <div class="col-12 mt-4 mb-2">
+                        <div class="hr-text my-0 text-secondary">Dates &amp; Contrat</div>
+                    </div>
+
+                    <!-- Colonne 1 : Date d'entrée en flotte -->
                     <div class="col-12 col-md-6">
                         <label class="form-label required" for="v_entree">Date d'entrée en flotte</label>
                         <div class="input-icon">
@@ -216,7 +221,7 @@
                         </div>
                     </div>
 
-                    <!-- Colonne 1 : Durée du contrat -->
+                    <!-- Colonne 2 : Durée du contrat -->
                     <div class="col-12 col-md-6">
                         <label class="form-label required" for="v_duree_contrat">Durée du contrat (mois)</label>
                         <input type="number" class="form-control" id="v_duree_contrat" name="duree_contrat" min="0" max="240"
@@ -224,7 +229,7 @@
                                onchange="calculerDateSortiePrevue()">
                     </div>
 
-                    <!-- Colonne 2 : Date de sortie prévisionnelle -->
+                    <!-- Colonne 1 : Date de sortie prévisionnelle -->
                     <div class="col-12 col-md-6">
                         <label class="form-label required" for="v_sortie_prevue">Date de sortie prévisionnelle</label>
                         <div class="input-icon">
@@ -240,25 +245,18 @@
                         <div class="form-text">Calculée automatiquement à partir de la durée du contrat et de la date d'entrée.</div>
                     </div>
 
-                    <!-- Colonne 1 : Kilométrage maximum -->
+                    <!-- Colonne 2 : Date de sortie effective -->
                     <div class="col-12 col-md-6">
-                        <label class="form-label" for="v_km_maxi">Kilométrage maximum</label>
-                        <div class="input-group">
-                            <input type="number" class="form-control" id="v_km_maxi" name="km_maxi"
-                                   min="0" max="999999" step="1" inputmode="numeric"
-                                   value="<?= $v('km_maxi') ?>">
-                            <span class="input-group-text">km</span>
-                        </div>
-                    </div>
-
-                    <!-- Colonne 2 : Kilométrage de référence -->
-                    <div class="col-12 col-md-6">
-                        <label class="form-label" for="v_kilometrage">Kilométrage de référence</label>
-                        <div class="input-group">
-                            <input type="number" class="form-control" id="v_kilometrage" name="kilometrage"
-                                   min="0" max="9999999" step="1" inputmode="numeric"
-                                   value="<?= $v('kilometrage', '0') ?>">
-                            <span class="input-group-text">km</span>
+                        <label class="form-label" for="v_sortie_effective">Date de sortie effective</label>
+                        <div class="input-icon">
+                            <span class="input-icon-addon">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true">
+                                    <path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12" />
+                                    <path d="M16 3v4" /><path d="M8 3v4" /><path d="M4 11h16" /><path d="M11 15h1" /><path d="M12 15v3" />
+                                </svg>
+                            </span>
+                            <input type="text" class="form-control" id="v_sortie_effective" name="date_sortie_effective"
+                                   value="<?= $v('date_sortie_effective') ?>" placeholder="YYYY-MM-DD" autocomplete="off" data-bs-toggle="datepicker">
                         </div>
                     </div>
 
@@ -275,6 +273,60 @@
                             <input type="text" class="form-control" id="v_sortie_angelus" name="sortie_angelus"
                                    value="<?= $v('sortie_angelus') ?>" placeholder="YYYY-MM-DD" autocomplete="off" data-bs-toggle="datepicker">
                         </div>
+                    </div>
+
+                    <!-- Séparateur Kilométrage -->
+                    <div class="col-12 mt-4 mb-2">
+                        <div class="hr-text my-0 text-secondary">Kilométrage</div>
+                    </div>
+
+                    <!-- Colonne 1 : Kilométrage arrivée -->
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="v_km_arrivee">Kilométrage arrivée</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="v_km_arrivee" name="km_arrivee"
+                                   min="0" max="9999999" step="1" inputmode="numeric"
+                                   value="<?= $v('km_arrivee') ?>">
+                            <span class="input-group-text">km</span>
+                        </div>
+                    </div>
+
+                    <!-- Colonne 2 : Kilométrage de référence -->
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="v_kilometrage">Kilométrage de référence</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="v_kilometrage" name="kilometrage"
+                                   min="0" max="9999999" step="1" inputmode="numeric"
+                                   value="<?= $v('kilometrage', '0') ?>">
+                            <span class="input-group-text">km</span>
+                        </div>
+                    </div>
+
+                    <!-- Colonne 1 : Kilométrage fin -->
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="v_km_fin">Kilométrage fin</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="v_km_fin" name="km_fin"
+                                   min="0" max="9999999" step="1" inputmode="numeric"
+                                   value="<?= $v('km_fin') ?>">
+                            <span class="input-group-text">km</span>
+                        </div>
+                    </div>
+
+                    <!-- Colonne 2 : Kilométrage maximum -->
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="v_km_maxi">Kilométrage maximum</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="v_km_maxi" name="km_maxi"
+                                   min="0" max="999999" step="1" inputmode="numeric"
+                                   value="<?= $v('km_maxi') ?>">
+                            <span class="input-group-text">km</span>
+                        </div>
+                    </div>
+
+                    <!-- Séparateur Équipements -->
+                    <div class="col-12 mt-4 mb-2">
+                        <div class="hr-text my-0 text-secondary">Équipements &amp; Contrôles</div>
                     </div>
 
                     <!-- Colonne 2 : Équipé d'un hayon -->

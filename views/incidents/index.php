@@ -4,7 +4,7 @@ declare(strict_types=1);
 /**
  * Liste des incidents et sinistres.
  *
- * @var array $incidents, $filtres, $vehicules, $types, $statuts
+ * @var array $incidents, $filtres, $vehicules, $types, $statuts, $entites, $assurance_statuts
  * @var string $base_url
  */
 
@@ -13,7 +13,8 @@ use Core\Csrf;
 use Core\Request;
 
 $e = static fn (?string $v): string => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
-$modifiable = Auth::can(Auth::ROLE_MODIFICATION);
+$peutCreer = Auth::canCreateIncident();
+$peutSupprimer = Auth::canDeleteIncident();
 ?>
 <div class="card mb-3">
     <div class="card-body">
@@ -30,9 +31,20 @@ $modifiable = Auth::can(Auth::ROLE_MODIFICATION);
                 </select>
             </div>
             <div class="col-6 col-md-2">
+                <label class="form-label" for="i_filtre_entite">Entité</label>
+                <select class="form-select" id="i_filtre_entite" name="entite">
+                    <option value="">Toutes les entités</option>
+                    <?php foreach ($entites as $ent): ?>
+                        <option value="<?= (int) $ent['id'] ?>" <?= (int) ($filtres['entite'] ?? 0) === (int) $ent['id'] ? 'selected' : '' ?>>
+                            <?= $e($ent['nom']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
                 <label class="form-label" for="i_type">Type</label>
                 <select class="form-select" id="i_type" name="type">
-                    <option value="">Tous</option>
+                    <option value="">Tous les types</option>
                     <?php foreach ($types as $cle => $libelle): ?>
                         <option value="<?= $e($cle) ?>" <?= $filtres['type'] === $cle ? 'selected' : '' ?>><?= $e($libelle) ?></option>
                     <?php endforeach; ?>
@@ -41,10 +53,17 @@ $modifiable = Auth::can(Auth::ROLE_MODIFICATION);
             <div class="col-6 col-md-2">
                 <label class="form-label" for="i_statut">Statut</label>
                 <select class="form-select" id="i_statut" name="statut">
-                    <option value="">Tous</option>
+                    <option value="">Tous les statuts</option>
                     <?php foreach ($statuts as $cle => $libelle): ?>
                         <option value="<?= $e($cle) ?>" <?= $filtres['statut'] === $cle ? 'selected' : '' ?>><?= $e($libelle) ?></option>
                     <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label" for="i_filtre_remb">Remboursement assurance</label>
+                <select class="form-select" id="i_filtre_remb" name="attente_remboursement">
+                    <option value="">Tous les dossiers</option>
+                    <option value="1" <?= ($filtres['attente_remboursement'] ?? '') === '1' ? 'selected' : '' ?>>En attente de remboursement assurance</option>
                 </select>
             </div>
             <div class="col-6 col-md-2">
@@ -55,7 +74,7 @@ $modifiable = Auth::can(Auth::ROLE_MODIFICATION);
                 <label class="form-label" for="i_au">Au</label>
                 <input type="date" class="form-control" id="i_au" name="au" value="<?= $e($filtres['au']) ?>">
             </div>
-            <div class="col-12 d-flex gap-2">
+            <div class="col-12 col-md-8 d-flex gap-2">
                 <button type="submit" class="btn btn-primary">Filtrer</button>
                 <a href="<?= $e($base_url . '/incidents') ?>" class="btn btn-outline-secondary">Réinitialiser</a>
                 <span class="ms-2 text-secondary small align-self-center"><?= count($incidents) ?> incident(s)</span>
@@ -67,7 +86,7 @@ $modifiable = Auth::can(Auth::ROLE_MODIFICATION);
 <div class="card">
     <div class="card-header">
         <h3 class="card-title">Incidents &amp; sinistres</h3>
-        <?php if ($modifiable): ?>
+        <?php if ($peutCreer): ?>
             <div class="card-actions">
                 <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modal-incident">
                     <svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
@@ -87,8 +106,8 @@ $modifiable = Auth::can(Auth::ROLE_MODIFICATION);
             <table class="table table-vcenter card-table table-hover">
                 <thead>
                 <tr>
-                    <th>Date</th><th>Véhicule</th><th>Type</th><th>Lieu</th>
-                    <th>Responsable</th><th>Immatr.</th><th>Statut</th><th class="w-1">Pièces</th><th class="w-1"></th>
+                    <th>Date</th><th>Véhicule</th><th>Entité</th><th>Type</th><th>Lieu</th>
+                    <th>Responsable</th><th>Assurance</th><th>Statut</th><th class="w-1">Pièces</th><th class="w-1"></th>
                 </tr>
                 </thead>
                 <tbody>
@@ -102,6 +121,11 @@ $modifiable = Auth::can(Auth::ROLE_MODIFICATION);
                             </a>
                             <div class="small text-secondary"><?= $e($i['marque_nom'] . ' ' . $i['modele_nom']) ?></div>
                         </td>
+                        <td>
+                            <span class="badge bg-blue-lt">
+                                <?= $e($i['entite_nom'] ?: '—') ?>
+                            </span>
+                        </td>
                         <td><?= $e(\Models\Incident::TYPES[(string) $i['type']] ?? (string) $i['type']) ?></td>
                         <td class="text-secondary"><?= $e((string) ($i['lieu'] ?: '—')) ?></td>
                         <td>
@@ -109,7 +133,25 @@ $modifiable = Auth::can(Auth::ROLE_MODIFICATION);
                                 <?= (int) $i['responsable'] === 1 ? 'Responsable' : 'Non responsable' ?>
                             </span>
                         </td>
-                        <td class="text-center"><?= (int) $i['immatricule'] === 1 ? 'Oui' : 'Non' ?></td>
+                        <td>
+                            <?php if ($i['assurance_statut'] === 'prise_en_charge'): ?>
+                                <?php if ((int) $i['remboursement_percu'] === 1): ?>
+                                    <span class="badge bg-teal-lt" title="Montant perçu de l'assurance<?= $i['montant_rembourse'] !== null ? ' : ' . number_format((float) $i['montant_rembourse'], 2, ',', ' ') . ' €' : '' ?><?= $i['montant_franchise'] !== null ? ' (Franchise : ' . number_format((float) $i['montant_franchise'], 2, ',', ' ') . ' €)' : '' ?>">
+                                        <svg class="icon icon-inline me-1" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2"><path d="M5 12l5 5l10 -10"/></svg>Perçu
+                                    </span>
+                                <?php elseif (!empty($i['remboursement_attendu']) || (!empty($i['montant_rembourse']) && (float) $i['montant_rembourse'] > 0)): ?>
+                                    <span class="badge bg-warning-lt text-warning" title="En attente de remboursement<?= $i['montant_rembourse'] !== null ? ' (Attendu : ' . number_format((float) $i['montant_rembourse'], 2, ',', ' ') . ' €)' : '' ?><?= $i['montant_franchise'] !== null ? ' (Franchise : ' . number_format((float) $i['montant_franchise'], 2, ',', ' ') . ' €)' : '' ?>">
+                                        <svg class="icon icon-inline me-1" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>En attente
+                                    </span>
+                                <?php else: ?>
+                                    <span class="badge bg-azure-lt">Prise en charge</span>
+                                <?php endif; ?>
+                            <?php elseif ($i['assurance_statut'] === 'non_prise_en_charge'): ?>
+                                <span class="badge bg-secondary-lt">Non prise</span>
+                            <?php else: ?>
+                                <span class="text-secondary small">—</span>
+                            <?php endif; ?>
+                        </td>
                         <td>
                             <span class="badge <?= $i['statut'] === 'cloture' ? 'bg-green-lt' : ($i['statut'] === 'en_traitement' ? 'bg-orange-lt' : 'bg-red-lt') ?> badge-statut">
                                 <?= $e(\Models\Incident::STATUTS[(string) $i['statut']] ?? (string) $i['statut']) ?>
@@ -124,7 +166,7 @@ $modifiable = Auth::can(Auth::ROLE_MODIFICATION);
                         </td>
                         <td class="cell-actions text-end">
                             <a href="<?= $e($base_url . '/incidents/voir?id=' . (int) $i['id']) ?>" class="btn btn-sm">Dossier</a>
-                            <?php if ($modifiable): ?>
+                            <?php if ($peutSupprimer): ?>
                                 <form method="post" action="<?= $e($base_url . '/incidents/supprimer') ?>" class="d-inline"
                                       data-confirmer="Archiver ce dossier d'incident ? Il sera masqué pour les profils non-administrateurs.">
                                     <?= Csrf::field() ?>
@@ -146,12 +188,14 @@ $modifiable = Auth::can(Auth::ROLE_MODIFICATION);
     </div>
 </div>
 
-<?php if ($modifiable): ?>
+<?php if ($peutCreer): ?>
     <?php $this->partial('incidents/_formulaire', [
-        'base_url'   => $base_url,
-        'vehicules'  => $vehicules,
-        'types'      => $types,
-        'statuts'    => $statuts,
-        'vehicule_id' => (int) $filtres['vehicule_id'],
+        'base_url'          => $base_url,
+        'vehicules'         => $vehicules,
+        'entites'           => $entites,
+        'types'             => $types,
+        'statuts'           => $statuts,
+        'assurance_statuts' => $assurance_statuts,
+        'vehicule_id'       => (int) $filtres['vehicule_id'],
     ]); ?>
 <?php endif; ?>

@@ -19,22 +19,28 @@ referme automatiquement et son adresse devient inaccessible.
 L'accès à `/install` est refusé dès qu'une installation est constatée : impossible
 d'écraser par accident une base déjà en service.
 
-### Les trois niveaux d'accès
+### Les niveaux d'accès
+
+La matrice des rôles de Flotteo permet une gestion fine des droits :
 
 | Niveau | Peut |
 | :--- | :--- |
-| **Lecture** | Consulter les véhicules, révisions, incidents, échéances et les tableaux de bord. |
-| **Modification** | Créer et éditer véhicules, révisions et incidents. |
-| **Administration** | Tout ce qui précède, plus les utilisateurs, les référentiels et les paramètres. |
+| **Lecture Seule** | Consulter l'ensemble des modules d'exploitation (véhicules, révisions, incidents, échéances, kilométrage et tableaux de bord) en lecture seule. |
+| **Comptabilité** | Navigation globale en lecture seule, dépôt de pièces jointes sur les incidents, et gestion financière complète des sinistres (saisie franchise, montants d'assurance, encaissement effectif et clôture des dossiers). Création et suppression de dossiers interdites. |
+| **Documentaliste** | Consulter l'application et téléverser des documents et pièces jointes sur les véhicules, révisions et incidents. |
+| **Modification** | Créer et éditer l'ensemble des données d'exploitation (véhicules, révisions, relevés kilométriques, déclaration d'incidents). |
+| **Administration** | Accès total : paramétrage système, gestion des référentiels, comptes utilisateurs, journal d'audit et sauvegardes. |
 
-La barre supérieure n'affiche que les modules accessibles à votre niveau. Paramètres,
-Référentiels et Utilisateurs n'apparaissent pas pour un profil « Modification ».
+La barre supérieure n'affiche que les modules accessibles à votre niveau. Paramètres et Référentiels n'apparaissent pas pour les profils « Lecture Seule », « Comptabilité », « Documentaliste » et « Modification ».
 
 ### La barre supérieure
 
 Neuf entrées, de gauche à droite : **Tableau de bord**, **Agenda**, **Véhicules**,
-**Révisions**, **Incidents**, **Échéances**, **Référentiels**, **Paramètres**,
-**Utilisateurs**.
+**Kilométrage**, **Révisions**, **Incidents**, **Échéances**, **Référentiels**, **Paramètres**.
+
+> **Organisation de l'administration.** Pour préserver la lisibilité de la barre supérieure,
+> les modules **Utilisateurs** (gestion des comptes) et **Journal d'audit** (traçabilité de sécurité)
+> sont désormais réunis dans la page **Paramètres**, au sein du bloc latéral « Sécurité & Contrôle ».
 
 L'entrée courante est signalée par un liseré bleu en dessous de son nom. **À partir
 de 1200 px de largeur d'écran**, la barre affiche toutes ses entrées d'un seul tenant.
@@ -84,14 +90,41 @@ et le type d'intervention provient des référentiels.
 
 ## 5. Incidents & sinistres
 
-Signalement et suivi d'un sinistre, avec pièce jointe téléchargeable depuis sa fiche.
+Signalement, instruction et suivi administratif et financier des sinistres de la flotte.
 
-Les photographies (JPG, PNG, WEBP) s'affichent en **vignette** dans la liste des
-pièces jointes : un clic sur la vignette ouvre l'image dans un nouvel onglet, un
-clic sur le nom télécharge le fichier. Les PDF, qui n'ont pas d'aperçu possible,
-sont signalés par une icône. Le cadre d'une vignette reste vide si le fichier
-n'est plus présent sur le serveur — l'icône indique alors « Fichier absent du
-stockage ».
+### Informations déclaratives & Entité
+
+Chaque incident consigne la date de survenue, le véhicule impliqué, le type de sinistre (panne, bris de glace, accident matériel, etc.), le lieu, le tiers éventuel et la responsabilité du conducteur.
+Une **Entité** (filiale, établissement ou centre de coût) est rattachée au dossier — héritée automatiquement du véhicule concerné ou sélectionnée manuellement. La colonne Entité apparaît dans le tableau récapitulatif pour faciliter l'analyse analytique.
+
+### Volet Assurance & Suivi financier
+
+Pour chaque dossier, le bloc **Assurance & Prise en charge** permet de piloter la relation avec la compagnie :
+* **Prise en charge :** Indique si le sinistre fait l'objet d'une déclaration et d'une prise en charge par l'assureur.
+* **Remboursement attendu :** Case à cocher précisant qu'une indemnisation de la compagnie est prévue.
+* **Montants financiers :** Deux champs numériques alignés pour le montant de l'indemnité remboursée (€) et le montant de la franchise restant à charge (€).
+* **Remboursement perçu :** Case à cocher matérialisant l'encaissement effectif des fonds sur le compte bancaire. Dès que cette case est cochée, la saisie d'un montant remboursé supérieur à 0 € est obligatoire.
+
+> **Règle de gestion bloquante (Intégrité financière).** Un dossier d'incident ne peut pas être
+> clôturé (statut « Clôturé ») si un remboursement est attendu sans que la case « Remboursement perçu »
+> ne soit cochée et validée. Cette sécurité empêche d'archiver prématurément un dossier dont l'indemnisation
+> reste en souffrance. Le blocage intervient dynamiquement dans l'interface ainsi que côté serveur.
+
+### Procédure pas-à-pas pour le profil Comptabilité
+
+Les utilisateurs dotés du profil **Comptabilité** disposent des droits nécessaires pour instruire financièrement les sinistres :
+1. **Identifier les dossiers non soldés :** Dans la liste des incidents, utiliser le sélecteur **Remboursement assurance** et choisir **« En attente de remboursement assurance »**.
+2. **Consulter la fiche :** Cliquer sur **Dossier** sur la ligne de l'incident pour ouvrir sa vue détaillée.
+3. **Joindre les pièces comptables :** Déposer les quittances de règlement, décomptes d'assurance ou factures acquittées dans la section « Pièces jointes » (formats PDF, JPG, PNG, WEBP acceptés).
+4. **Mettre à jour les montants :** Cliquer sur **Modifier**, renseigner la franchise et l'indemnité perçue, puis cocher **Remboursement perçu**.
+5. **Clôturer le dossier :** Positionner le statut sur **Clôturé** puis enregistrer.
+
+### Pièces jointes & Visionneuse intégrée
+
+Les photographies (JPG, PNG, WEBP) et documents PDF s'affichent dans la liste des pièces jointes :
+* Un clic sur un document ouvre la **visionneuse modale intégrée** (zoom, lecture pleine page de PDF ou photo).
+* Un bouton dédié permet le téléchargement direct du fichier original.
+* Les profils **Comptabilité**, **Documentaliste**, **Modification** et **Administration** peuvent ajouter des pièces jointes. La suppression est strictement réservée aux administrateurs et modificateurs pour garantir la traçabilité.
 
 ---
 
@@ -200,137 +233,44 @@ réaffectez d'abord les données qui en dépendent.
 
 ## 8. Paramètres
 
-La page se parcourt par une **navigation verticale** à gauche. La section choisie
-s'affiche à droite ; l'entrée courante est signalée.
+Le centre névralgique de l'administration de Flotteo. La page se parcourt par une **navigation verticale** à gauche, organisée en deux ensembles distincts :
 
-Chaque section a son propre bouton **Enregistrer** et n'enregistre que ses propres
-réglages : enregistrer une section ne touche pas les autres.
+### 1. Configuration système
+* **Messagerie :** Mode d'envoi (frontal PHP natif ou serveur SMTP sécurisé), identifiants, adresse expéditrice et test d'envoi en direct avec validation TLS/STARTTLS.
+* **Alertes :** Paliers d'anticipation avant fin de contrat (90, 180, 270 jours), destinataire unique des alertes et déclenchement planifié par tâche `cron`.
+* **Relevés kilométriques :** Fréquence des relevés, délais de grâce et relances automatiques par courriel.
+* **Sauvegardes :** Rétention locale des archives SQL et synchronisation automatique vers un partage réseau distant Samba/SMB.
+* **Mises à jour :** Dépôt GitHub de référence et vérification des versions publiées.
+* **Base de données :** Métriques d'occupation des tables et maintenance.
 
-### Section « Messagerie »
-
-Détermine comment l'application envoie ses emails.
-
-**Mode d'envoi.** Deux choix :
-
-* **Frontal PHP natif** — délègue l'envoi à la configuration PHP du serveur. C'est le
-  choix par défaut, sans réglage supplémentaire.
-* **Serveur SMTP** — l'application adresse elle-même votre serveur de messagerie.
-
-**Réglages du serveur SMTP** (toujours affichés, mais utilisés uniquement si le mode
-« Serveur SMTP » est sélectionné) :
-
-| Champ | À quoi ça sert | Exemple |
-| :--- | :--- | :--- |
-| Serveur | Nom d'hôte du serveur | `smtp.exemple.fr` |
-| Port | Port de connexion | `587` |
-| Chiffrement | Mode de chiffrement | `STARTTLS` |
-| Identifiant | Compte de connexion | `alerte@exemple.fr` |
-| Mot de passe | Secret du compte | — |
-
-**Le certificat du serveur est vérifié.** Un certificat auto-signé ou expiré sera
-refusé, et le message d'erreur le dira explicitement. Si votre hébergeur utilise un
-certificat interne, installez son autorité de certification sur le serveur plutôt que
-de contourner la vérification.
-
-**Adresse expéditrice.** L'adresse présentée aux destinataires. La plupart des
-serveurs exigent qu'elle appartienne au domaine que vous déclarez.
-
-> **Mot de passe.** Le mot de passe enregistré n'est **jamais** renvoyé au navigateur.
-> Si le champ est laissé vide, la valeur enregistrée est conservée. Pour la changer,
-> saisissez une nouvelle valeur ; pour l'effacer, cochez la case dédiée.
-
-**Vérifier la configuration.** Un bouton **Envoyer un message de test** envoie un
-courriel à l'adresse de votre choix.
-
-> Le test porte sur les valeurs **actuellement saisies**, pas sur celles enregistrées.
-> Vous pouvez donc valider une configuration avant de l'enregistrer. Seul le mot de
-> passe fait exception : il retombe sur la valeur enregistrée, puisqu'il n'est jamais
-> affiché.
-
-Le résultat s'affiche sous le bouton. En cas d'échec, le message indique la cause
-réelle : port fermé, certificat non reconnu, identifiants refusés, adresse refusée.
-
-### Section « Alertes »
-
-**Activation.** L'interrupteur suspend ou réactive l'envoi des rappels. Suspendre
-n'efface aucun réglage.
-
-**Paliers d'anticipation.** Trois délais, exprimés en jours avant la date de sortie
-prévue. Un palier à 0 est ignoré. Les paliers actifs sont rappelés sous les champs.
-
-**Destinataire des rappels.** Adresse unique qui reçoit le récapitulatif des véhicules
-concernés. Laisser vide suspend l'envoi.
-
-**Exécution.** Le bouton **Envoyer le récapitulatif** déclenche un envoi immédiat,
-désactivé lorsque les alertes sont suspendues. La commande `cron` affichée permet
-d'automatiser un envoi hebdomadaire.
+### 2. Sécurité & Contrôle
+Ce volet réunit les deux fonctions fondamentales de gouvernance :
+* **Utilisateurs :** Accès direct à la gestion des comptes, des rôles applicatifs et des politiques de renouvellement de mot de passe.
+* **Journal d'audit :** Consultation et recherche multi-critères des événements, modifications et suppressions intervenues sur l'application.
 
 ---
 
-## 9. Utilisateurs
+## 9. Utilisateurs & Journal d'audit
 
-Création et édition des comptes, avec attribution du niveau d'accès.
+Accessibles depuis le menu **Paramètres** (rubrique « Sécurité & Contrôle »).
 
-### Les cartes de profil
+### Gestion des utilisateurs
 
-Les comptes ne sont pas présentés dans un tableau mais dans une **grille de cartes**,
-sur le modèle des cartes de profil de Tabler. Chaque carte porte un bandeau coloré
-dont la teinte dépend du rôle, une photo ou des initiales, le nom, l'adresse email, le
-badge du niveau d'accès, l'état du compte et sa date de création.
+Les comptes sont organisés en grille de cartes Tabler. Chaque carte affiche le nom, l'email, la photo de profil (ou initiales), le statut de validité du mot de passe et le badge du rôle attribué :
+* **Lecture Seule** (badge gris / secondaire) : consultation générale.
+* **Comptabilité** (badge sarcelle / teal) : suivi financier des sinistres et justificatifs.
+* **Documentaliste** (badge azur) : archivage documentaire technique.
+* **Modification** (badge bleu) : exploitation courante du parc.
+* **Administration** (badge violet / purple) : gestion globale et sécurité.
 
-La grille se réorganise selon la largeur de la fenêtre : **trois cartes par ligne** sur
-un grand écran, **deux** à partir de 768 px, **une seule** en dessous. Rien n'est
-masqué, la page entière défile comme les autres.
+Chaque compte peut être forcé à renouveler son mot de passe lors de sa prochaine connexion, et une règle automatique prévient l'utilisateur un mois avant l'échéance semestrielle de renouvellement.
+Le dernier compte administrateur actif est strictement protégé contre toute rétrogradation ou suppression.
 
-Deux actions seulement sont proposées sur chaque carte : le bouton **Éditer** et le
-bouton **Supprimer**. Sur votre propre carte, **Supprimer est absent** — on ne peut pas
-se retirer soi-même l'accès à l'application.
+### Journal d'audit & Traçabilité
 
-### Ajouter un compte
-
-Le bouton **Ajouter** ouvre une modale. Les champs marqués d'un astérisque sont
-obligatoires : nom d'utilisateur, adresse email, mot de passe et niveau d'accès.
-
-Vous pouvez **déposer une photo** depuis votre ordinateur. Trois formats sont acceptés,
-jusqu'à 8 Mo : **JPEG, PNG et WEBP**.
-
-### Modifier un compte
-
-Le bouton crayon ouvre la même modale, pré-remplie. Le titre passe de « Ajouter » à
-« Modifier ».
-
-Deux points méritent attention :
-
-* **La photo n'est pas touchée** si vous ne faites rien à son sujet. Renommer un compte
-  ou changer son adresse email conserve l'illustration existante.
-* **Pour retirer la photo**, cochez la case « Supprimer l'avatar » puis enregistrez. Si
-  vous cochez cette case *et* désignez un fichier, **c'est le fichier qui gagne** : la
-  case est alors ignorée.
-
-Si la modale s'ouvre vide alors que vous veniez de cliquer sur le crayon, faites un
-rechargement forcé de la page (Ctrl+Maj+R) : une version ancienne du script est
-probablement encore en cache dans le navigateur.
-
-### Supprimer un compte
-
-Le bouton corbeille demande confirmation avant d'agir — une confirmation explicite,
-jamais une boîte de dialogue native du navigateur.
-
-**Une suppression peut être refusée** : c'est le cas du dernier compte administrateur.
-La règle protège l'application d'une perte d'accès totale. Réaffectez le niveau
-d'accès à un autre compte avant de supprimer celui-ci.
-
-### Bon à savoir
-
-* **La photo n'est pas un document.** Seuls les formats d'image sont acceptés : un PDF
-  ou un fichier GIF déposé à cet endroit sera refusé. Les pièces jointes des incidents
-  acceptent, elles, le PDF.
-* **Le type réel du fichier est contrôlé**, pas son extension. Renommer un fichier en
-  `.png` ne le fait pas passer pour une image.
-* **Le dernier administrateur est protégé**, quelle que soit la voie utilisée : ni la
-  suppression ni la rétrogradation du dernier compte administrateur ne sont possibles.
-* Les photos sont stockées sous un **nom aléatoire**, sans votre nom d'utilisateur
-  dedans, dans un dossier où l'exécution de programmes est interdite.
+Permet de suivre en temps réel chaque opération d'écriture (création, modification, suppression logique, restauration ou téléversement de fichier) sur l'ensemble des modules (véhicules, entretiens, incidents, documents, utilisateurs).
+Le journal consigne l'auteur, l'adresse IP, la date/heure exacte, l'entité visée, la description humaine et le différentiel avant/après (`diff`).
+Un export CSV et une modale de purge manuelle sont mis à disposition des administrateurs.
 
 ---
 
@@ -360,11 +300,13 @@ les transmettre. Elles sont régénérées par `php scripts/build_docs.php`.
 
 | Symptôme | Cause probable | Solution |
 | :--- | :--- | :--- |
+| Impossible de clôturer un incident | Un remboursement est attendu mais n'a pas été marqué comme perçu | Ouvrir le formulaire d'édition, cocher « Remboursement perçu » et renseigner le montant perçu (> 0 €) |
+| Le bouton « Signaler un incident » est absent | Profil insuffisant (Comptabilité ou Lecture Seule) | La déclaration d'incidents est réservée aux profils Modification et Administration |
 | Aucun email ne part | Alertes suspendues, ou destinataire vide | Section « Alertes » : activez les alertes et renseignez le destinataire |
 | Le test d'envoi échoue sur le certificat | Certificat auto-signé du serveur de messagerie | Installez l'autorité de certification sur le serveur |
 | Le test d'envoi échoue sur l'authentification | Identifiant ou mot de passe erroné, ou champ identifiant laissé vide alors qu'il est exigé | Vérifiez les deux champs ; le mot de passe conservé est celui enregistré |
 | « Suppression impossible » sur un référentiel | L'entrée est encore utilisée par un véhicule ou un entretien | Réaffectez ou supprimez d'abord ces données |
-| Un module manque dans la barre | Profil insuffisant | Référentiels, Paramètres et Utilisateurs exigent le niveau Administration |
+| Un module manque dans la barre | Profil insuffisant | Référentiels et Paramètres exigent le niveau Administration |
 | Le bouton « Éditer » n'ouvre rien | Script en cache | Rechargement forcé de la page (Ctrl+Maj+R) |
 | « Type de fichier refusé » sur un avatar | Le fichier n'est pas une image, ou son extension ne correspond pas à son contenu | Déposez un JPEG, PNG ou WEBP ; un PDF ou un GIF sont refusés à cet endroit |
 | L'image n'apparaît pas après l'enregistrement | La modale avait été ouverte avant le rechargement forcé | Rechargez la page, rouvrez la modale, puis enregistrez |

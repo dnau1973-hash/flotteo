@@ -13,6 +13,7 @@ final class User
 {
     public const ROLES = [
         'lecture_seule'  => 'Lecture Seule',
+        'comptabilite'   => 'Comptabilité',
         'documentaliste' => 'Documentaliste',
         'modification'   => 'Modification',
         'administration' => 'Administration',
@@ -21,7 +22,7 @@ final class User
     private static bool $schemaVerifie = false;
 
     /**
-     * S'assure que la colonne ENUM 'role' de la table 'utilisateurs' inclut bien 'documentaliste'.
+     * S'assure que la colonne ENUM 'role' de la table 'utilisateurs' inclut bien 'comptabilite' et 'documentaliste'.
      */
     public static function ensureRoleEnum(): void
     {
@@ -32,8 +33,8 @@ final class User
 
         try {
             $col = Database::one("SHOW COLUMNS FROM utilisateurs LIKE 'role'");
-            if ($col && isset($col['Type']) && !str_contains((string) $col['Type'], 'documentaliste')) {
-                Database::run("ALTER TABLE utilisateurs MODIFY COLUMN role ENUM('lecture_seule','documentaliste','modification','administration') NOT NULL DEFAULT 'lecture_seule'");
+            if ($col && isset($col['Type']) && (!str_contains((string) $col['Type'], 'documentaliste') || !str_contains((string) $col['Type'], 'comptabilite'))) {
+                Database::run("ALTER TABLE utilisateurs MODIFY COLUMN role ENUM('lecture_seule','comptabilite','documentaliste','modification','administration') NOT NULL DEFAULT 'lecture_seule'");
             }
             Database::run("ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS doit_changer_mot_de_passe TINYINT(1) NOT NULL DEFAULT 0 AFTER actif");
             Database::run("ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS password_changed_at DATETIME NULL DEFAULT NULL AFTER doit_changer_mot_de_passe");

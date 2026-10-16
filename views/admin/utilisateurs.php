@@ -31,6 +31,7 @@ $icone = static fn (string $nom, string $classes = ''): string => Icon::solid($n
 // Teintes du bandeau supérieur et du badge, par rôle.
 $teintes = [
     'lecture_seule'  => ['bandeau' => 'bg-secondary-lt', 'badge' => 'bg-secondary-lt'],
+    'comptabilite'   => ['bandeau' => 'bg-teal-lt',      'badge' => 'bg-teal-lt'],
     'documentaliste' => ['bandeau' => 'bg-azure-lt',     'badge' => 'bg-azure-lt'],
     'modification'   => ['bandeau' => 'bg-blue-lt',      'badge' => 'bg-blue-lt'],
     'administration' => ['bandeau' => 'bg-purple-lt',   'badge' => 'bg-purple-lt'],
@@ -44,6 +45,9 @@ $teinte = static fn (string $role): array => $teintes[$role] ?? $teintes['lectur
             <?= $icone('users', 'me-2') ?>Comptes utilisateurs
         </h3>
         <div class="card-actions">
+            <a href="<?= $e($base_url . '/admin/parametres') ?>" class="btn btn-outline-secondary me-2">
+                <?= $icone('sliders', 'me-1') ?>Paramètres
+            </a>
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modal-utilisateur">
                 <?= $icone('plus', 'me-1') ?>Nouvel utilisateur
             </button>
@@ -175,6 +179,10 @@ $teinte = static fn (string $role): array => $teintes[$role] ?? $teintes['lectur
                 <tr>
                     <td><span class="badge bg-secondary-lt">Lecture Seule</span></td>
                     <td>✔</td><td>—</td><td>—</td><td>—</td>
+                </tr>
+                <tr>
+                    <td><span class="badge bg-teal-lt">Comptabilité</span></td>
+                    <td>✔</td><td>✔ (incidents)</td><td>✔ (suivi incidents &amp; assurance)</td><td>—</td>
                 </tr>
                 <tr>
                     <td><span class="badge bg-azure-lt">Documentaliste</span></td>

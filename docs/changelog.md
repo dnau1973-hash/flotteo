@@ -5,6 +5,44 @@ doivent être synchronisés à chaque livraison.
 
 ---
 
+## [1.4.0] — 2026-10-16
+
+### Nouvelles fonctionnalités
+
+#### Intégration de la gestion des utilisateurs et du journal d'audit dans la page Paramètres
+* **Hub d'administration unifié.** Les entrées *Utilisateurs* et *Journal d'audit* sont désormais regroupées au sein de la page *Paramètres* dans un volet latéral dédié « Sécurité & Contrôle ».
+* **Allègement de la barre supérieure.** La navigation principale passe à neuf modules équilibrés, évitant tout repli prématuré en menu hamburger sur les résolutions standard (1200 px).
+* **Raccourcis et fluidité.** Des raccourcis de navigation directe (`/admin/parametres/utilisateurs`, `/admin/parametres/journal`) et des boutons de retour rapide vers *Paramètres* ont été intégrés aux en-têtes des cartes.
+
+#### Volet Assurance & Prise en charge sur les incidents
+* **Champs financiers et assurantiels.** Enrichissement de la table `incidents` et du formulaire de saisie : statut de prise en charge (`non_prise_en_charge`, `prise_en_charge`), case « Remboursement attendu », montant remboursé (€), montant de la franchise restant à charge (€) et statut « Remboursement perçu ».
+* **Indicateurs visuels contextuels.** Badges d'état enrichis dans la liste des incidents : badge sarcelle *Perçu*, badge orange *En attente de remboursement* avec infobulle financière dynamique (détail indemnité et franchise), ou badge *Prise en charge*.
+* **Affectation par Entité.** Intégration de la colonne « Entité » dans la liste des incidents et rattachement automatique lors de la déclaration depuis le véhicule.
+* **Filtre comptable dédié.** Nouveau filtre « En attente de remboursement assurance » dans la barre d'outils des incidents, isolant les créances non encore soldées.
+
+#### Nouveau profil utilisateur « Comptabilité »
+* **Rôle `comptabilite` (RBAC).** Création d'un profil intermédiaire dédié aux services comptables et financiers, matérialisé par une teinte sarcelle (*teal*) sur les cartes et les badges.
+* **Droits d'action ciblés.** Consultation générale de l'ensemble de l'application en lecture seule, droit d'upload et de téléchargement de pièces justificatives sur les dossiers de sinistres, mise à jour des volets financiers et droit de clôture des dossiers régularisés. Interdiction stricte de création ou de suppression d'incidents et de documents.
+
+### Améliorations & Règles métier
+
+#### Règle bloquante d'intégrité sur la clôture d'un incident
+* **Contrôle double (Client & Serveur).** Un dossier d'incident ne peut plus être clôturé (statut `cloture`) si un remboursement est attendu sans que la case « Remboursement perçu » ne soit cochée et qu'un montant supérieur à zéro ne soit renseigné.
+* **Validation client interactive.** Le bouton d'enregistrement et les contrôles JavaScript signalent immédiatement l'anomalie sans rechargement de page.
+* **Garde-fou serveur.** `IncidentController::save()` et `Incident::validate()` bloquent toute tentative d'écriture illicite avec code HTTP 422 et message explicite.
+
+#### Refonte ergonomique du bloc Assurance
+* **Disposition en grille responsive.** Élimination des effets d'escalier visuels par un alignement strict en deux colonnes équilibrées pour la franchise et l'indemnité d'assurance.
+* **Affichage conditionnel fluide.** Les champs de remboursement et de franchise n'apparaissent dynamiquement que si « Prise en charge » est sélectionné.
+
+### Sécurité & Rôles
+
+* **Guards granulaires dans `Core\Auth` et `IncidentController`.** Mise en place des méthodes `Auth::canEditIncident()`, `Auth::canCreateIncident()`, `Auth::canDeleteIncident()`, `Auth::canUploadIncidentDocument()`, `Auth::canDeleteIncidentDocument()` et des gardes `requireIncidentPermission()` / `requireUploadIncidentDocument()`.
+* **Réponses HTTP 403 propres.** Toute tentative d'action non permise pour le rôle courant renvoie un statut 403 standardisé et tracé.
+* **Migration automatique du schéma SQL.** Mise à jour de `utilisateurs.role` sans interruption de service via `Models\User::ensureRoleEnum()` et mise à disposition du script `sql/migration_comptabilite.sql`.
+
+---
+
 ## [1.2.3] — 2026-10-05
 
 ### Corrections

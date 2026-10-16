@@ -57,6 +57,9 @@ $calculerPages = static function (int $actuelle, int $total): array {
             <?= $icone('clock-rotate-left', 'me-2 text-primary') ?>Journal d'audit &amp; Traçabilité
         </h3>
         <div class="card-actions d-flex gap-2">
+            <a href="<?= $e($base_url . '/admin/parametres') ?>" class="btn btn-outline-secondary btn-sm">
+                <?= $icone('sliders', 'me-1') ?>Paramètres
+            </a>
             <a href="<?= $e($base_url . '/admin/journal/export-csv?' . http_build_query($urlParams)) ?>"
                class="btn btn-outline-secondary btn-sm" title="Exporter au format CSV">
                 <?= $icone('file-arrow-down', 'me-1') ?>Exporter CSV
@@ -492,11 +495,13 @@ document.addEventListener('DOMContentLoaded', function () {
         'statut': 'Statut',
         'date_entree': 'Date d\'entrée',
         'duree_contrat': 'Durée contrat (mois)',
-        'km_maxi': 'Kilométrage maxi',
-        'kilometrage': 'Kilométrage',
+        'km_arrivee': 'Kilométrage arrivée',
+        'kilometrage': 'Kilométrage de référence',
+        'km_fin': 'Kilométrage fin',
+        'km_maxi': 'Kilométrage maximum',
         'sortie_angelus': 'Sortie Angelus',
         'date_sortie_prevue': 'Sortie prévisionnelle',
-        'date_sortie_effective': 'Sortie effective',
+        'date_sortie_effective': 'Date de sortie effective',
         'sortie_reelle': 'Sortie réelle',
         'hayon': 'Équipé hayon',
         'temps_controle_hayon': 'Contrôle hayon (mois)',

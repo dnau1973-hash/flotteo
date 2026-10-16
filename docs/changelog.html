@@ -34,6 +34,28 @@
 <h1>Journal des modifications — Flotteo</h1>
 <p>Format inspiré de <em>Keep a Changelog</em>. Les registres <code>changelog.md</code> et <code>changelog.html</code> doivent être synchronisés à chaque livraison.</p>
 <hr class="my-4">
+<h2>[1.4.0] — 2026-10-16</h2>
+<h3>Nouvelles fonctionnalités</h3>
+<h4>Intégration de la gestion des utilisateurs et du journal d&#039;audit dans la page Paramètres</h4>
+<ul>
+<li><strong>Hub d&#039;administration unifié.</strong> Les entrées <em>Utilisateurs</em> et <em>Journal d&#039;audit</em> sont désormais regroupées au sein de la page <em>Paramètres</em> dans un volet latéral dédié « Sécurité &amp; Contrôle ».</li><li><strong>Allègement de la barre supérieure.</strong> La navigation principale passe à neuf modules équilibrés, évitant tout repli prématuré en menu hamburger sur les résolutions standard (1200 px).</li><li><strong>Raccourcis et fluidité.</strong> Des raccourcis de navigation directe (<code>/admin/parametres/utilisateurs</code>, <code>/admin/parametres/journal</code>) et des boutons de retour rapide vers <em>Paramètres</em> ont été intégrés aux en-têtes des cartes.</li></ul>
+<h4>Volet Assurance &amp; Prise en charge sur les incidents</h4>
+<ul>
+<li><strong>Champs financiers et assurantiels.</strong> Enrichissement de la table <code>incidents</code> et du formulaire de saisie : statut de prise en charge (<code>non_prise_en_charge</code>, <code>prise_en_charge</code>), case « Remboursement attendu », montant remboursé (€), montant de la franchise restant à charge (€) et statut « Remboursement perçu ».</li><li><strong>Indicateurs visuels contextuels.</strong> Badges d&#039;état enrichis dans la liste des incidents : badge sarcelle <em>Perçu</em>, badge orange <em>En attente de remboursement</em> avec infobulle financière dynamique (détail indemnité et franchise), ou badge <em>Prise en charge</em>.</li><li><strong>Affectation par Entité.</strong> Intégration de la colonne « Entité » dans la liste des incidents et rattachement automatique lors de la déclaration depuis le véhicule.</li><li><strong>Filtre comptable dédié.</strong> Nouveau filtre « En attente de remboursement assurance » dans la barre d&#039;outils des incidents, isolant les créances non encore soldées.</li></ul>
+<h4>Nouveau profil utilisateur « Comptabilité »</h4>
+<ul>
+<li><strong>Rôle <code>comptabilite</code> (RBAC).</strong> Création d&#039;un profil intermédiaire dédié aux services comptables et financiers, matérialisé par une teinte sarcelle (<em>teal</em>) sur les cartes et les badges.</li><li><strong>Droits d&#039;action ciblés.</strong> Consultation générale de l&#039;ensemble de l&#039;application en lecture seule, droit d&#039;upload et de téléchargement de pièces justificatives sur les dossiers de sinistres, mise à jour des volets financiers et droit de clôture des dossiers régularisés. Interdiction stricte de création ou de suppression d&#039;incidents et de documents.</li></ul>
+<h3>Améliorations &amp; Règles métier</h3>
+<h4>Règle bloquante d&#039;intégrité sur la clôture d&#039;un incident</h4>
+<ul>
+<li><strong>Contrôle double (Client &amp; Serveur).</strong> Un dossier d&#039;incident ne peut plus être clôturé (statut <code>cloture</code>) si un remboursement est attendu sans que la case « Remboursement perçu » ne soit cochée et qu&#039;un montant supérieur à zéro ne soit renseigné.</li><li><strong>Validation client interactive.</strong> Le bouton d&#039;enregistrement et les contrôles JavaScript signalent immédiatement l&#039;anomalie sans rechargement de page.</li><li><strong>Garde-fou serveur.</strong> <code>IncidentController::save()</code> et <code>Incident::validate()</code> bloquent toute tentative d&#039;écriture illicite avec code HTTP 422 et message explicite.</li></ul>
+<h4>Refonte ergonomique du bloc Assurance</h4>
+<ul>
+<li><strong>Disposition en grille responsive.</strong> Élimination des effets d&#039;escalier visuels par un alignement strict en deux colonnes équilibrées pour la franchise et l&#039;indemnité d&#039;assurance.</li><li><strong>Affichage conditionnel fluide.</strong> Les champs de remboursement et de franchise n&#039;apparaissent dynamiquement que si « Prise en charge » est sélectionné.</li></ul>
+<h3>Sécurité &amp; Rôles</h3>
+<ul>
+<li><strong>Guards granulaires dans <code>Core\Auth</code> et <code>IncidentController</code>.</strong> Mise en place des méthodes <code>Auth::canEditIncident()</code>, <code>Auth::canCreateIncident()</code>, <code>Auth::canDeleteIncident()</code>, <code>Auth::canUploadIncidentDocument()</code>, <code>Auth::canDeleteIncidentDocument()</code> et des gardes <code>requireIncidentPermission()</code> / <code>requireUploadIncidentDocument()</code>.</li><li><strong>Réponses HTTP 403 propres.</strong> Toute tentative d&#039;action non permise pour le rôle courant renvoie un statut 403 standardisé et tracé.</li><li><strong>Migration automatique du schéma SQL.</strong> Mise à jour de <code>utilisateurs.role</code> sans interruption de service via <code>Models\User::ensureRoleEnum()</code> et mise à disposition du script <code>sql/migration_comptabilite.sql</code>.</li></ul>
+<hr class="my-4">
 <h2>[1.2.3] — 2026-10-05</h2>
 <h3>Corrections</h3>
 <h4>La « Matrice des incidents » restait vide, sans erreur console</h4>
@@ -230,7 +252,7 @@
 <li>Aucune. Il s&#039;agit de la première livraison de Flotteo.</li></ul>
                     </div>
                     <div class="card-footer text-secondary small">
-                        Document généré depuis <code>changelog.md</code> — Flotteo v1.0.1.
+                        Document généré depuis <code>changelog.md</code> — Flotteo v1.4.0.
                     </div>
                 </div>
             </div>

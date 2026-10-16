@@ -78,8 +78,6 @@ $modules = [
     ['cle' => 'echeances',  'url' => '/echeances',         'libelle' => 'Échéances',           'icone' => 'calendar-days',        'role' => 'lecture'],
     ['cle' => 'referentiels', 'url' => '/admin/dictionnaires', 'libelle' => 'Référentiels',    'icone' => 'list',                  'role' => 'admin'],
     ['cle' => 'parametres', 'url' => '/admin/parametres',  'libelle' => 'Paramètres',          'icone' => 'sliders',              'role' => 'admin'],
-    ['cle' => 'utilisateurs', 'url' => '/admin/utilisateurs', 'libelle' => 'Utilisateurs',      'icone' => 'users',                'role' => 'admin'],
-    ['cle' => 'journal',     'url' => '/admin/journal',       'libelle' => 'Journal d\'audit',  'icone' => 'clock-rotate-left',    'role' => 'admin'],
 ];
 
 /** Les entrées réellement accessibles à l'utilisateur connecté. */
@@ -103,7 +101,11 @@ foreach ($modulesVisibles as $module) {
     $urlModule = rtrim($module['url'], '/');
     $correspond = $cheminActif === $urlModule
         || ($cheminActif === '/' && $urlModule === '/dashboard')
-        || str_starts_with($cheminActif, $urlModule . '/');
+        || str_starts_with($cheminActif, $urlModule . '/')
+        || ($module['cle'] === 'parametres' && (
+            str_starts_with($cheminActif, '/admin/utilisateurs') ||
+            str_starts_with($cheminActif, '/admin/journal')
+        ));
 
     if ($correspond && strlen($urlModule) > $longueurActive) {
         $cleActive      = $module['cle'];

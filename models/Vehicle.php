@@ -42,9 +42,31 @@ final class Vehicle
         INNER JOIN loueurs  l  ON l.id  = v.loueur_id
         INNER JOIN lieux    li ON li.id = v.lieu_id';
 
+    private static bool $schemaVerifie = false;
+
+    /**
+     * Migration automatique du schéma (colonnes km_arrivee, km_fin et soft delete).
+     */
+    public static function ensureSchema(): void
+    {
+        if (self::$schemaVerifie) {
+            return;
+        }
+        self::$schemaVerifie = true;
+        SoftDeleteMigration::run();
+
+        try {
+            Database::run("ALTER TABLE `vehicules` ADD COLUMN IF NOT EXISTS `date_sortie_effective` DATE NULL AFTER `date_sortie_prevue`");
+            Database::run("ALTER TABLE `vehicules` ADD COLUMN IF NOT EXISTS `km_arrivee` INT UNSIGNED NULL DEFAULT NULL AFTER `kilometrage`");
+            Database::run("ALTER TABLE `vehicules` ADD COLUMN IF NOT EXISTS `km_fin` INT UNSIGNED NULL DEFAULT NULL AFTER `km_arrivee`");
+        } catch (\Throwable $e) {
+            // Ignore si déjà existant
+        }
+    }
+
     public static function find(int $id): ?array
     {
-        SoftDeleteMigration::run();
+        self::ensureSchema();
         $v = Database::one(self::SELECT_BASE . ' WHERE v.id = :id', ['id' => $id]);
         if ($v !== null) {
             // Un profil non-administrateur ne peut pas accéder à un véhicule archivé
@@ -81,7 +103,7 @@ final class Vehicle
      */
     private static function buildWhereFiltres(array $filtres): array
     {
-        SoftDeleteMigration::run();
+        self::ensureSchema();
         $where  = [];
         $params = [];
 
@@ -201,7 +223,7 @@ final class Vehicle
      */
     public static function echeancesEntre(string $du, string $au): array
     {
-        SoftDeleteMigration::run();
+        self::ensureSchema();
         $sql = self::SELECT_BASE . '
                  WHERE v.deleted_at IS NULL
                    AND v.date_sortie_effective IS NULL
@@ -257,8 +279,11 @@ final class Vehicle
         'duree_contrat',
         'km_maxi',
         'kilometrage',
-        'sortie_angelus',
+        'km_arrivee',
+        'km_fin',
         'date_sortie_prevue',
+        'date_sortie_effective',
+        'sortie_angelus',
         'hayon',
         'temps_controle_hayon',
         'date_dernier_controle_hayon',
@@ -309,8 +334,11 @@ final class Vehicle
             'duree_contrat'                => Request::int('duree_contrat') > 0 ? Request::int('duree_contrat') : null,
             'km_maxi'                      => Request::int('km_maxi') > 0 ? Request::int('km_maxi') : null,
             'kilometrage'                  => max(0, Request::int('kilometrage')),
-            'sortie_angelus'               => $parseDate('sortie_angelus'),
+            'km_arrivee'                   => Request::input('km_arrivee') !== '' && Request::input('km_arrivee') !== null ? max(0, Request::int('km_arrivee')) : null,
+            'km_fin'                       => Request::input('km_fin') !== '' && Request::input('km_fin') !== null ? max(0, Request::int('km_fin')) : null,
             'date_sortie_prevue'           => (string) ($parseDate('date_sortie_prevue') ?? ''),
+            'date_sortie_effective'        => $parseDate('date_sortie_effective'),
+            'sortie_angelus'               => $parseDate('sortie_angelus'),
             'hayon'                        => $hayon,
             'temps_controle_hayon'         => $hayon === 1 && $tempsHayon > 0 ? $tempsHayon : null,
             'date_dernier_controle_hayon'  => $hayon === 1 && $dateDernier !== '' ? ($parseDate('date_dernier_controle_hayon') ?? $dateDernier) : null,
@@ -321,11 +349,13 @@ final class Vehicle
 
     public static function create(array $data): int
     {
+        self::ensureSchema();
         return Database::insert('vehicules', $data);
     }
 
     public static function update(int $id, array $data): int
     {
+        self::ensureSchema();
         return Database::update('vehicules', $id, $data);
     }
 
@@ -668,6 +698,18 @@ final class Vehicle
         if (!empty($d['km_maxi']) && $d['km_maxi'] < 0) {
             $erreurs[] = 'Le kilométrage maximum doit être positif ou nul.';
         }
+        if (!empty($d['km_arrivee']) && $d['km_arrivee'] < 0) {
+            $erreurs[] = 'Le kilométrage arrivée doit être positif ou nul.';
+        }
+        if (!empty($d['km_fin']) && $d['km_fin'] < 0) {
+            $erreurs[] = 'Le kilométrage fin doit être positif ou nul.';
+        }
+        if (!empty($d['km_arrivee']) && !empty($d['km_fin']) && $d['km_fin'] < $d['km_arrivee']) {
+            $erreurs[] = 'Le kilométrage fin ne peut pas être inférieur au kilométrage arrivée.';
+        }
+        if (!empty($d['date_sortie_effective']) && $d['date_sortie_effective'] < $d['date_entree']) {
+            $erreurs[] = 'La date de sortie effective ne peut pas être antérieure à la date d\'entrée.';
+        }
         if (!empty($d['sortie_reelle']) && $d['sortie_reelle'] < $d['date_entree']) {
             $erreurs[] = 'La sortie réelle ne peut pas être antérieure à la date d\'entrée.';
         }
@@ -693,7 +735,7 @@ final class Vehicle
     /** Statistiques de parc pour les cartes KPI, avec filtre entité optionnel. */
     public static function stats(?int $entiteId = null): array
     {
-        SoftDeleteMigration::run();
+        self::ensureSchema();
         $where = ' WHERE deleted_at IS NULL';
         $params = [];
         if ($entiteId !== null && $entiteId > 0) {

@@ -51,6 +51,36 @@ $meta = $sections[$section];
                 <?php endforeach; ?>
             </div>
         </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h3 class="card-title"><?= $icone('shield-halved', 'me-2 text-primary') ?>Sécurité &amp; Contrôle</h3>
+            </div>
+            <div class="list-group list-group-flush">
+                <a class="list-group-item list-group-item-action d-flex align-items-start py-3"
+                   href="<?= $e($base_url . '/admin/utilisateurs') ?>">
+                    <span class="me-3 mt-1 text-primary"><?= $icone('users') ?></span>
+                    <span>
+                        <strong class="d-flex align-items-center justify-content-between">
+                            Utilisateurs
+                            <i class="fa-solid fa-arrow-right ms-2 text-secondary small"></i>
+                        </strong>
+                        <small class="d-block text-secondary">Comptes, profils et gestion des accès.</small>
+                    </span>
+                </a>
+                <a class="list-group-item list-group-item-action d-flex align-items-start py-3"
+                   href="<?= $e($base_url . '/admin/journal') ?>">
+                    <span class="me-3 mt-1 text-primary"><?= $icone('clock-rotate-left') ?></span>
+                    <span>
+                        <strong class="d-flex align-items-center justify-content-between">
+                            Journal d'audit
+                            <i class="fa-solid fa-arrow-right ms-2 text-secondary small"></i>
+                        </strong>
+                        <small class="d-block text-secondary">Traçabilité des opérations et sécurité.</small>
+                    </span>
+                </a>
+            </div>
+        </div>
     </div>
 
     <!-- ============ Contenu contextuel : trois quarts ============ -->

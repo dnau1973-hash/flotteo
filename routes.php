@@ -121,6 +121,8 @@ $router->get('/admin/parametres/{section}', ParamController::class, 'index');
 $router->post('/admin/parametres/{section}/enregistrer', ParamController::class, 'save');
 $router->post('/admin/parametres/messagerie/tester', ParamController::class, 'testerCourriel');
 $router->post('/admin/parametres/mises-a-jour/verifier', ParamController::class, 'verifierMiseAJour');
+$router->get('/admin/parametres/utilisateurs', ParamController::class, 'utilisateurs');
+$router->get('/admin/parametres/journal', ParamController::class, 'journal');
 $router->post('/alertes/executer', ParamController::class, 'runAlerts');
 
 // --- Administration : base de données (nouveau) ---------------------------------

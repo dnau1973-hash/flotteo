@@ -142,6 +142,20 @@ final class ParamController extends Controller
         $this->redirect('/admin/parametres/sauvegardes');
     }
 
+    /** Raccourci vers la gestion des utilisateurs depuis les paramètres. */
+    public function utilisateurs(): void
+    {
+        $this->guard(Auth::ROLE_ADMIN);
+        $this->redirect('/admin/utilisateurs');
+    }
+
+    /** Raccourci vers le journal d'audit depuis les paramètres. */
+    public function journal(): void
+    {
+        $this->guard(Auth::ROLE_ADMIN);
+        $this->redirect('/admin/journal');
+    }
+
     public function index(): void
     {
         $this->guard(Auth::ROLE_ADMIN);

@@ -24,15 +24,18 @@ final class IncidentController extends Controller
     public function index(): void
     {
         $this->guard();
+        $this->view()->useScript('incidents.js');
         $filtres = Incident::filtersFromRequest();
 
         $this->render('incidents/index', [
-            'base_url'   => $this->baseUrl(),
-            'incidents'  => Incident::search($filtres),
-            'filtres'    => $filtres,
-            'vehicules'  => Vehicle::search([]),
-            'types'      => Incident::TYPES,
-            'statuts'    => Incident::STATUTS,
+            'base_url'          => $this->baseUrl(),
+            'incidents'         => Incident::search($filtres),
+            'filtres'           => $filtres,
+            'vehicules'         => Vehicle::search([]),
+            'entites'           => \Models\Dictionary::list('entites'),
+            'types'             => Incident::TYPES,
+            'statuts'           => Incident::STATUTS,
+            'assurance_statuts' => Incident::ASSURANCE_STATUTS,
         ]);
     }
 
@@ -40,6 +43,7 @@ final class IncidentController extends Controller
     public function show(): void
     {
         $this->guard();
+        $this->view()->useScript('incidents.js');
         $id       = Request::int('id');
         $incident = $id > 0 ? Incident::find($id) : null;
 
@@ -49,12 +53,14 @@ final class IncidentController extends Controller
         }
 
         $this->render('incidents/show', [
-            'base_url' => $this->baseUrl(),
-            'incident' => $incident,
-            'fichiers' => Incident::files($id),
-            'vehicules' => Vehicle::search([]),
-            'types'    => Incident::TYPES,
-            'statuts'  => Incident::STATUTS,
+            'base_url'          => $this->baseUrl(),
+            'incident'          => $incident,
+            'fichiers'          => Incident::files($id),
+            'vehicules'         => Vehicle::search([]),
+            'entites'           => \Models\Dictionary::list('entites'),
+            'types'             => Incident::TYPES,
+            'statuts'           => Incident::STATUTS,
+            'assurance_statuts' => Incident::ASSURANCE_STATUTS,
         ]);
     }
 
@@ -72,8 +78,10 @@ final class IncidentController extends Controller
             ], Request::int('id'));
         }
 
-        $this->guardPost();
-        $id      = Request::int('id');
+        $id = Request::int('id');
+        Csrf::verifyOrFail();
+        Auth::requireIncidentPermission($id === 0);
+
         $payload = Incident::buildPayload();
         $erreurs = Incident::validate($payload);
 
@@ -221,7 +229,8 @@ final class IncidentController extends Controller
     /** Dépôt d'une pièce jointe sur un incident (POST, multipart). */
     public function upload(): void
     {
-        $this->guardPost(Auth::ROLE_DOCUMENTALISTE);
+        Csrf::verifyOrFail();
+        Auth::requireUploadIncidentDocument();
 
         $incidentId = Request::int('incident_id');
         $incident   = $incidentId > 0 ? Incident::find($incidentId) : null;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 /**
  * Dossier d'un incident : détail et pièces jointes (constats, factures, photos).
  *
- * @var array $incident, $fichiers, $vehicules, $types, $statuts
+ * @var array $incident, $fichiers, $vehicules, $types, $statuts, $entites, $assurance_statuts
  * @var string $base_url
  */
 
@@ -13,8 +13,10 @@ use Core\Csrf;
 use Models\Incident;
 
 $e = static fn (?string $v): string => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
-$modifiable = Auth::can(Auth::ROLE_MODIFICATION);
-$peutAjouterDocument = Auth::can(Auth::ROLE_DOCUMENTALISTE);
+$modifiable = Auth::canEditIncident($incident);
+$peutSupprimer = Auth::canDeleteIncident();
+$peutAjouterDocument = Auth::canUploadIncidentDocument();
+$peutSupprimerDocument = Auth::canDeleteIncidentDocument();
 $config = (require dirname(__DIR__, 2) . '/config/config.php');
 $tailleMax = round($config['securite']['taille_max_upload'] / 1048576);
 $isArchive = !empty($incident['deleted_at']);
@@ -91,6 +93,12 @@ $poids = static function (int $octets): string {
                         </div>
                     </div>
                     <div class="datagrid-item">
+                        <div class="datagrid-title">Entité</div>
+                        <div class="datagrid-content">
+                            <span class="badge bg-blue-lt"><?= $e($incident['entite_nom'] ?: '—') ?></span>
+                        </div>
+                    </div>
+                    <div class="datagrid-item">
                         <div class="datagrid-title">Type d'incident</div>
                         <div class="datagrid-content"><?= $e(Incident::TYPES[(string) $incident['type']] ?? (string) $incident['type']) ?></div>
                     </div>
@@ -107,6 +115,52 @@ $poids = static function (int $octets): string {
                     </div>
                 </div>
 
+                <h4 class="mb-2 mt-4"><i class="fa-solid fa-shield-halved text-primary me-1"></i> Assurance &amp; Prise en charge</h4>
+                <div class="datagrid mb-3">
+                    <div class="datagrid-item">
+                        <div class="datagrid-title">Prise en charge</div>
+                        <div class="datagrid-content">
+                            <?php if ($incident['assurance_statut'] === 'prise_en_charge'): ?>
+                                <span class="badge bg-azure-lt">Prise en charge</span>
+                            <?php elseif ($incident['assurance_statut'] === 'non_prise_en_charge'): ?>
+                                <span class="badge bg-secondary-lt">Non prise en charge</span>
+                            <?php else: ?>
+                                <span class="text-secondary">—</span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <?php if ($incident['assurance_statut'] === 'prise_en_charge'): ?>
+                        <div class="datagrid-item">
+                            <div class="datagrid-title">Remboursement attendu</div>
+                            <div class="datagrid-content">
+                                <?= (int) $incident['remboursement_attendu'] === 1 ? '<span class="text-warning fw-bold">Oui</span>' : 'Non' ?>
+                            </div>
+                        </div>
+                        <div class="datagrid-item">
+                            <div class="datagrid-title">Montant perçu de l'assurance</div>
+                            <div class="datagrid-content fw-bold text-teal">
+                                <?= $incident['montant_rembourse'] !== null ? number_format((float) $incident['montant_rembourse'], 2, ',', ' ') . ' €' : '—' ?>
+                            </div>
+                        </div>
+                        <div class="datagrid-item">
+                            <div class="datagrid-title">Montant de la franchise</div>
+                            <div class="datagrid-content">
+                                <?= $incident['montant_franchise'] !== null ? number_format((float) $incident['montant_franchise'], 2, ',', ' ') . ' €' : '—' ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+                    <div class="datagrid-item">
+                        <div class="datagrid-title">Statut encaissement</div>
+                        <div class="datagrid-content">
+                            <?php if ((int) $incident['remboursement_percu'] === 1): ?>
+                                <span class="badge bg-teal-lt"><i class="fa-solid fa-check me-1"></i>Remboursement perçu</span>
+                            <?php else: ?>
+                                <span class="badge bg-secondary-lt">Non perçu</span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+
                 <h4 class="mb-2">Descriptif</h4>
                 <p class="text-secondary mb-0">
                     <?= $incident['description'] !== null && $incident['description'] !== ''
@@ -115,36 +169,36 @@ $poids = static function (int $octets): string {
                 </p>
             </div>
 
-            <?php if ($modifiable): ?>
-                <div class="card-footer d-flex no-print">
+            <div class="card-footer d-flex no-print">
+                <?php if ($modifiable): ?>
                     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modal-incident">Modifier</button>
-                    <a href="<?= $e($base_url . '/incidents') ?>" class="btn btn-outline-secondary ms-2">Retour à la liste</a>
-                    <?php if ($isArchive): ?>
-                        <?php if (Auth::can(Auth::ROLE_ADMIN)): ?>
-                            <div class="ms-auto d-flex gap-2">
-                                <form method="post" action="<?= $e($base_url . '/incidents/restaurer') ?>">
-                                    <?= Csrf::field() ?>
-                                    <input type="hidden" name="id" value="<?= (int) $incident['id'] ?>">
-                                    <button type="submit" class="btn btn-success">Restaurer le dossier</button>
-                                </form>
-                                <form method="post" action="<?= $e($base_url . '/incidents/supprimer-definitif') ?>"
-                                      data-confirmer="Attention : Supprimer DÉFINITIVEMENT cet incident et l'ensemble de ses pièces jointes ? Cette action est IRRÉVERSIBLE.">
-                                    <?= Csrf::field() ?>
-                                    <input type="hidden" name="id" value="<?= (int) $incident['id'] ?>">
-                                    <button type="submit" class="btn btn-danger">Supprimer définitivement</button>
-                                </form>
-                            </div>
-                        <?php endif; ?>
-                    <?php else: ?>
-                        <form method="post" action="<?= $e($base_url . '/incidents/supprimer') ?>" class="ms-auto"
-                              data-confirmer="Archiver ce dossier d'incident ? Il sera masqué pour les profils non-administrateurs.">
-                            <?= Csrf::field() ?>
-                            <input type="hidden" name="id" value="<?= (int) $incident['id'] ?>">
-                            <button type="submit" class="btn btn-outline-danger">Archiver le dossier</button>
-                        </form>
+                <?php endif; ?>
+                <a href="<?= $e($base_url . '/incidents') ?>" class="btn btn-outline-secondary <?= $modifiable ? 'ms-2' : '' ?>">Retour à la liste</a>
+                <?php if ($isArchive): ?>
+                    <?php if (Auth::can(Auth::ROLE_ADMIN)): ?>
+                        <div class="ms-auto d-flex gap-2">
+                            <form method="post" action="<?= $e($base_url . '/incidents/restaurer') ?>">
+                                <?= Csrf::field() ?>
+                                <input type="hidden" name="id" value="<?= (int) $incident['id'] ?>">
+                                <button type="submit" class="btn btn-success">Restaurer le dossier</button>
+                            </form>
+                            <form method="post" action="<?= $e($base_url . '/incidents/supprimer-definitif') ?>"
+                                  data-confirmer="Attention : Supprimer DÉFINITIVEMENT cet incident et l'ensemble de ses pièces jointes ? Cette action est IRRÉVERSIBLE.">
+                                <?= Csrf::field() ?>
+                                <input type="hidden" name="id" value="<?= (int) $incident['id'] ?>">
+                                <button type="submit" class="btn btn-danger">Supprimer définitivement</button>
+                            </form>
+                        </div>
                     <?php endif; ?>
-                </div>
-            <?php endif; ?>
+                <?php elseif ($peutSupprimer): ?>
+                    <form method="post" action="<?= $e($base_url . '/incidents/supprimer') ?>" class="ms-auto"
+                          data-confirmer="Archiver ce dossier d'incident ? Il sera masqué pour les profils non-administrateurs.">
+                        <?= Csrf::field() ?>
+                        <input type="hidden" name="id" value="<?= (int) $incident['id'] ?>">
+                        <button type="submit" class="btn btn-outline-danger">Archiver le dossier</button>
+                    </form>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
 
@@ -236,7 +290,7 @@ $poids = static function (int $octets): string {
                                         <i class="fa-solid fa-download" aria-hidden="true"></i>
                                         <span class="visually-hidden">Télécharger <?= $e((string) $f['nom_original']) ?></span>
                                     </a>
-                                    <?php if ($modifiable): ?>
+                                    <?php if ($peutSupprimerDocument): ?>
                                         <form method="post" action="<?= $e($base_url . '/incidents/fichier/supprimer') ?>"
                                               data-confirmer="Supprimer définitivement la pièce jointe ?">
                                             <?= Csrf::field() ?>
@@ -308,11 +362,13 @@ $poids = static function (int $octets): string {
 
 <?php if ($modifiable): ?>
     <?php $this->partial('incidents/_formulaire', [
-        'base_url'   => $base_url,
-        'vehicules'  => $vehicules,
-        'types'      => $types,
-        'statuts'    => $statuts,
-        'vehicule_id' => (int) $incident['vehicule_id'],
+        'base_url'          => $base_url,
+        'vehicules'         => $vehicules,
+        'entites'           => $entites,
+        'types'             => $types,
+        'statuts'           => $statuts,
+        'assurance_statuts' => $assurance_statuts,
+        'vehicule_id'       => (int) $incident['vehicule_id'],
     ]); ?>
 <?php endif; ?>
 
@@ -390,6 +446,8 @@ $poids = static function (int $octets): string {
                 if (titreElem) titreElem.textContent = 'Modifier l\'incident';
                 var vElem = document.getElementById('i_v_vehicule');
                 if (vElem) vElem.value = '<?= (int) $incident['vehicule_id'] ?>';
+                var entElem = document.getElementById('i_v_entite');
+                if (entElem) entElem.value = <?= json_encode((string) ($incident['entite_id'] ?? '')) ?>;
                 var tElem = document.getElementById('i_v_type');
                 if (tElem) tElem.value = <?= json_encode((string) $incident['type']) ?>;
                 var dElem = document.getElementById('i_v_date');
@@ -402,8 +460,22 @@ $poids = static function (int $octets): string {
                 if (rElem) rElem.checked = <?= (int) $incident['responsable'] === 1 ? 'true' : 'false' ?>;
                 var imElem = document.getElementById('i_v_immat');
                 if (imElem) imElem.checked = <?= (int) $incident['immatricule'] === 1 ? 'true' : 'false' ?>;
+                var assElem = document.getElementById('i_v_assurance_statut');
+                if (assElem) assElem.value = <?= json_encode((string) ($incident['assurance_statut'] ?? '')) ?>;
+                var rembAttElem = document.getElementById('i_v_remb_attendu');
+                if (rembAttElem) rembAttElem.checked = <?= (int) ($incident['remboursement_attendu'] ?? 0) === 1 ? 'true' : 'false' ?>;
+                var montRembElem = document.getElementById('i_v_montant_rembourse');
+                if (montRembElem) montRembElem.value = <?= json_encode($incident['montant_rembourse'] !== null ? (string) $incident['montant_rembourse'] : '') ?>;
+                var montFranElem = document.getElementById('i_v_montant_franchise');
+                if (montFranElem) montFranElem.value = <?= json_encode($incident['montant_franchise'] !== null ? (string) $incident['montant_franchise'] : '') ?>;
+                var rembPercuElem = document.getElementById('i_v_remb_percu');
+                if (rembPercuElem) rembPercuElem.checked = <?= (int) ($incident['remboursement_percu'] ?? 0) === 1 ? 'true' : 'false' ?>;
                 var descElem = document.getElementById('i_v_description');
                 if (descElem) descElem.value = <?= json_encode((string) $incident['description']) ?>;
+
+                if (typeof window.actualiserBlocAssurance === 'function') {
+                    window.actualiserBlocAssurance();
+                }
             });
         }
     });

@@ -9,15 +9,17 @@ namespace Core;
 final class Auth
 {
     public const ROLE_LECTURE        = 'lecture_seule';
+    public const ROLE_COMPTABILITE   = 'comptabilite';
     public const ROLE_DOCUMENTALISTE = 'documentaliste';
     public const ROLE_MODIFICATION   = 'modification';
     public const ROLE_ADMIN          = 'administration';
 
     private const HIERARCHIE = [
         self::ROLE_LECTURE        => 1,
-        self::ROLE_DOCUMENTALISTE => 2,
-        self::ROLE_MODIFICATION   => 3,
-        self::ROLE_ADMIN          => 4,
+        self::ROLE_COMPTABILITE   => 2,
+        self::ROLE_DOCUMENTALISTE => 3,
+        self::ROLE_MODIFICATION   => 4,
+        self::ROLE_ADMIN          => 5,
     ];
 
     private static ?array $user = null;
@@ -163,6 +165,71 @@ final class Auth
     {
         self::requireLogin();
         if (!self::can($roleRequis)) {
+            if (Request::isJson()) {
+                Response::json(['success' => false, 'message' => 'Droits insuffisants.'], 403);
+            }
+            http_response_code(403);
+            (new View())->render('erreur/403', [], false);
+            exit;
+        }
+    }
+
+    /** L'utilisateur courant possède-t-il le rôle Comptabilité ? */
+    public static function isComptabilite(): bool
+    {
+        return self::role() === self::ROLE_COMPTABILITE;
+    }
+
+    /** L'utilisateur peut-il modifier cet incident ? */
+    public static function canEditIncident(): bool
+    {
+        return self::can(self::ROLE_MODIFICATION) || self::isComptabilite();
+    }
+
+    /** L'utilisateur peut-il créer un nouvel incident ? */
+    public static function canCreateIncident(): bool
+    {
+        return self::can(self::ROLE_MODIFICATION);
+    }
+
+    /** L'utilisateur peut-il archiver/supprimer un incident ? */
+    public static function canDeleteIncident(): bool
+    {
+        return self::can(self::ROLE_MODIFICATION);
+    }
+
+    /** L'utilisateur peut-il téléverser une pièce jointe sur un incident ? */
+    public static function canUploadIncidentDocument(): bool
+    {
+        return self::can(self::ROLE_DOCUMENTALISTE) || self::isComptabilite();
+    }
+
+    /** L'utilisateur peut-il supprimer une pièce jointe d'incident ? */
+    public static function canDeleteIncidentDocument(): bool
+    {
+        return self::can(self::ROLE_MODIFICATION);
+    }
+
+    /** Exige l'autorisation d'éditer ou créer un incident. */
+    public static function requireIncidentPermission(bool $isCreation): void
+    {
+        self::requireLogin();
+        $autorise = $isCreation ? self::canCreateIncident() : self::canEditIncident();
+        if (!$autorise) {
+            if (Request::isJson()) {
+                Response::json(['success' => false, 'message' => 'Droits insuffisants.'], 403);
+            }
+            http_response_code(403);
+            (new View())->render('erreur/403', [], false);
+            exit;
+        }
+    }
+
+    /** Exige l'autorisation de téléverser des documents d'incident. */
+    public static function requireUploadIncidentDocument(): void
+    {
+        self::requireLogin();
+        if (!self::canUploadIncidentDocument()) {
             if (Request::isJson()) {
                 Response::json(['success' => false, 'message' => 'Droits insuffisants.'], 403);
             }

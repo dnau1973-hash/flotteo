@@ -10,7 +10,7 @@ return [
     'app' => [
         'nom'      => 'Flotteo',
         'baseline' => 'Gestion de parc automobile',
-        'version'  => '1.0.1',
+        'version'  => '1.4.0',
         'debug'    => false,
         'devise'   => 'EUR',
     ],
